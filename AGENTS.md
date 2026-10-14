@@ -86,8 +86,10 @@ Also review by hand: the diff itself, and that `.gitignore` covers any new kind 
 1. Bump `CFBundleShortVersionString` and `CFBundleVersion` in `scripts/build.sh`.
 2. `make check`, then `make package`. It writes `TypeThru-<version>.dmg` and `.dmg.sig`; it needs
    the update key in the keychain and should sign with "TypeThru Release" (it warns on ad-hoc).
-3. Install the DMG on a clean user account or VM: Open Anyway, Accessibility, Set Up, the
-   typing tests in a remote session, Settings, Check Now, Uninstall.
+3. Install the DMG on a clean user account or VM: Open Anyway, Accessibility, the
+   launch-at-login question, Set Up, the typing tests in a remote session, Settings, Check Now,
+   Uninstall. After publishing, choose Install in the previous version: it must update,
+   reopen, and keep Accessibility.
 4. Live attack checks in a throwaway VM (only the user runs these; they need root or send keys):
    tamper with the bundled setup files and confirm Set Up refuses; send malformed and flooding
    requests to the helper socket; fake the update answer; corrupt the saved settings.
@@ -197,8 +199,9 @@ Application certificate, the self-signed "TypeThru Release" certificate (`make c
 Development certificate, then ad-hoc. Releases are signed with "TypeThru Release", so in-app
 updates keep Accessibility; it contains only that name. With a certificate the
 permission survives rebuilds; ad-hoc builds reset it, including for the copy in Applications,
-because both share the bundle ID. A self-signed certificate also works:
-`TYPETHRU_SIGN_IDENTITY='TypeThru Local' make build`.
+because both share the bundle ID. Use only "TypeThru Release" for releases: a release signed
+with any other certificate fails the update's designated-requirement check, so users would have
+to reinstall from the disk image.
 
 `make package` builds `TypeThru-<version>.dmg` and its update signature `TypeThru-<version>.dmg.sig`. With a Developer ID it signs with the hardened
 runtime and notarizes when `TYPETHRU_NOTARY_PROFILE` names a `notarytool` keychain profile.
@@ -216,8 +219,8 @@ update installs, `make cert` (it asks for the password), and installing from the
 Open Anyway, the move-to-Applications check). When a change affects
 these, list the exact manual steps for the user instead of claiming it works.
 
-Untested so far: RDP and VDI clients other than the one used during development, signing
-with a self-signed certificate or Developer ID, notarization, and the Intel build.
+Untested so far: RDP and VDI clients other than the one used during development, a real
+in-app update (Accessibility kept across it), Developer ID signing, notarization, and the Intel build.
 
 ## Style
 
