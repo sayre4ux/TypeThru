@@ -209,6 +209,42 @@ section("Update check") {
     check(Updates.isReleasePage(URL(string: "https://github.com/sayre4ux/TypeThru/releases/tag/v0.3.0-beta")!), "TypeThru release pages are accepted")
     check(newest?.page.absoluteString == "https://github.com/sayre4ux/TypeThru/releases/tag/v0.4.1", "release page")
     check(Updates.newest(from: Data("not json".utf8)) == nil && Updates.newest(from: Data("[]".utf8)) == nil, "bad or empty response")
+    check(newest?.download == nil && newest?.signature == nil, "a release without files has nothing to install")
+}
+
+section("Update install: files and signatures") {
+    let base = "https://github.com/sayre4ux/TypeThru/releases/download/v0.5.0-beta/"
+    func asset(_ name: String, _ link: String) -> String { "{\"name\": \"\(name)\", \"browser_download_url\": \"\(link)\"}" }
+    let json = """
+    [{"tag_name": "v0.5.0-beta", "html_url": "https://github.com/sayre4ux/TypeThru/releases/tag/v0.5.0-beta",
+      "assets": [\(asset("TypeThru-0.5.dmg", base + "TypeThru-0.5.dmg")), \(asset("TypeThru-0.5.dmg.sig", base + "TypeThru-0.5.dmg.sig"))]},
+     {"tag_name": "v0.6", "html_url": "https://github.com/sayre4ux/TypeThru/releases/tag/v0.6",
+      "assets": [\(asset("TypeThru-0.6.dmg", "https://evil.example/TypeThru-0.6.dmg")), \(asset("TypeThru-0.6.dmg.sig", base + "x.sig"))]},
+     {"tag_name": "v0.4", "html_url": "https://github.com/sayre4ux/TypeThru/releases/tag/v0.4",
+      "assets": [\(asset("TypeThru-0.4.dmg", base + "TypeThru-0.4.dmg"))]}]
+    """
+    let list = try! JSONSerialization.jsonObject(with: Data(json.utf8)) as! [Any]
+    let signed = Updates.newest(from: try! JSONSerialization.data(withJSONObject: [list[0], list[2]]))
+    check(signed?.download?.absoluteString == base + "TypeThru-0.5.dmg" && signed?.signature?.absoluteString == base + "TypeThru-0.5.dmg.sig", "disk image and signature found")
+    let foreign = Updates.newest(from: Data(json.utf8))
+    check(foreign?.version == "0.6" && foreign?.download == nil, "files on other sites are ignored")
+    let unsigned = Updates.newest(from: try! JSONSerialization.data(withJSONObject: [list[2]]))
+    check(unsigned?.download == nil, "a disk image without a signature is not offered")
+    check(!Updates.isReleaseFile(URL(string: "https://github.com/sayre4ux/TypeThru/releases/tag/v1")!), "release pages are not files")
+    check(!Updates.isReleaseFile(URL(string: "http://github.com/sayre4ux/TypeThru/releases/download/v1/a.dmg")!), "plain http refused")
+
+    let key = Curve25519.Signing.PrivateKey(), image = Data("disk image".utf8)
+    let signature = Data(try! key.signature(for: image).base64EncodedString().appending("\n").utf8)
+    let publicKey = key.publicKey.rawRepresentation
+    check(Updates.isSigned(image, signature: signature, key: publicKey), "valid signature accepted")
+    check(!Updates.isSigned(image + Data([0]), signature: signature, key: publicKey), "changed download refused")
+    check(!Updates.isSigned(image, signature: signature), "signature from another key refused")
+    check(!Updates.isSigned(image, signature: Data("not base64".utf8), key: publicKey) && !Updates.isSigned(image, signature: Data(), key: publicKey), "malformed signature refused")
+    check(UpdateKey.publicKey.count == 32, "built-in update key present")
+    var failed = false
+    do { try Updates.install(Updates.Release(version: "9", page: URL(string: "https://github.com/sayre4ux/TypeThru/releases/tag/v9")!)) }
+    catch { failed = true }
+    check(failed, "a release without signed files is not installed")
 }
 
 section("Speed levels and Virtual Keyboard timing") {

@@ -14,12 +14,14 @@ APP=${TYPETHRU_APP:-TypeThru.app}
 # A stable signing identity lets macOS keep the Accessibility permission across builds.
 # Any code signing certificate works: paid Developer ID, free Apple Development, or self-signed.
 # Set TYPETHRU_SIGN_IDENTITY to a certificate name or hash, or to - to force ad-hoc signing.
-# DECISION: without the variable, prefer Developer ID, then Apple Development, then ad-hoc.
+# DECISION: without the variable, prefer Developer ID, then the self-signed release certificate
+# (make cert), then Apple Development, then ad-hoc. Releases must keep one identity, or in-app
+# updates lose Accessibility; Apple Development also shows the signer's name.
 IDENTITY=${TYPETHRU_SIGN_IDENTITY-}
 if [ -z "$IDENTITY" ]; then
     IDENTITIES=$(security find-identity -v -p codesigning 2>/dev/null || true)
-    for kind in 'Developer ID Application' 'Apple Development'; do
-        IDENTITY=$(printf '%s\n' "$IDENTITIES" | awk -v k="\"$kind:" 'index($0, k) { print $2; exit }')
+    for kind in '"Developer ID Application:' '"TypeThru Release"' '"Apple Development:'; do
+        IDENTITY=$(printf '%s\n' "$IDENTITIES" | awk -v k="$kind" 'index($0, k) { print $2; exit }')
         [ -n "$IDENTITY" ] && break
     done
 fi
@@ -85,8 +87,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleExecutable</key><string>TypeThru</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.4.1</string>
-  <key>CFBundleVersion</key><string>5</string>
+  <key>CFBundleShortVersionString</key><string>0.5</string>
+  <key>CFBundleVersion</key><string>6</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
 </dict>

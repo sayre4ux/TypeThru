@@ -10,11 +10,12 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 
 | Path | Role |
 |---|---|
-| `Makefile` | Entry point: `make build`, `test`, `package`, `icon`, `audit`, `check`, `hooks` |
+| `Makefile` | Entry point: `make build`, `test`, `package`, `icon`, `audit`, `check`, `hooks`, `cert`, `update-key` |
 | `Sources/main.swift` | App: key map from the active layout, Quartz typing methods, typing tests, global hotkey, onboarding, diagnostics |
 | `Sources/Panel.swift` | Menu bar panel (SwiftUI, Liquid Glass on macOS 26+). A non-activating panel, so the target app stays in front |
 | `Sources/Settings.swift` | Settings window (SwiftUI form) for rarely changed options; shares the panel's model |
-| `Sources/Updates.swift` | Daily check of the GitHub releases API; shows a Download button, never installs |
+| `Sources/Updates.swift` | Daily check of the GitHub releases API; on Install, downloads, verifies, and replaces the app |
+| `Sources/UpdateKey.swift` | Public key for update signatures, written by `make update-key` |
 | `Sources/VirtualKeyboard.swift` | Client for the root helper: keycode → HID usage map, socket exchange, status, verified root setup |
 | `Sources/Brand.swift` | The TypeThru mark, shared by the menu bar icon and the app icon |
 | `helper/virtual-keyboard.cpp` | Root helper (launch daemon). Validates packets and posts HID reports to the Karabiner virtual keyboard |
@@ -28,6 +29,8 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 | `scripts/audit.sh` | Security and repository audit (see Before every push) |
 | `scripts/check.sh` | Tests, a throwaway build, and the audit; run before every push |
 | `scripts/make-icon.sh`, `scripts/make-icon.swift` | Redraw `Resources/AppIcon.icns` and the README logos |
+| `scripts/make-cert.sh` | Once per release signer: the self-signed "TypeThru Release" certificate (`make cert`) |
+| `scripts/update-key.swift` | Creates the update signing key (`make update-key`) and signs disk images for `package.sh` |
 | `Resources/AppIcon.icns` | App icon, copied into the app by `build.sh` |
 | `docs/` | README images: logos and a panel screenshot. Update them when the icon or panel changes |
 | `.githooks/pre-push` | Runs `scripts/check.sh` before every push (enable with `make hooks`) |
@@ -39,7 +42,7 @@ Builds before 0.3 were called KeyTyper and used `local.keytyper`; setup removes 
 helper and the app moves its settings over once (`migrateFromKeyTyper`). Changing an
 identifier again needs the same kind of migration.
 
-Git-ignored local state: `TypeThru.app/`, `*.dmg`, `.build/` (driver source, module caches,
+Git-ignored local state: `TypeThru.app/`, `*.dmg`, `*.dmg.sig`, `.build/` (driver source, module caches,
 test and check builds, last signing identity, generated `ResourceHashes.swift`), `.autopilot/`,
 `DEVLOG.md` (the local development log and roadmap).
 
@@ -81,13 +84,15 @@ Also review by hand: the diff itself, and that `.gitignore` covers any new kind 
 ## Release checklist
 
 1. Bump `CFBundleShortVersionString` and `CFBundleVersion` in `scripts/build.sh`.
-2. `make check`, then `make package`.
+2. `make check`, then `make package`. It writes `TypeThru-<version>.dmg` and `.dmg.sig`; it needs
+   the update key in the keychain and should sign with "TypeThru Release" (it warns on ad-hoc).
 3. Install the DMG on a clean user account or VM: Open Anyway, Accessibility, Set Up, the
    typing tests in a remote session, Settings, Check Now, Uninstall.
 4. Live attack checks in a throwaway VM (only the user runs these; they need root or send keys):
    tamper with the bundled setup files and confirm Set Up refuses; send malformed and flooding
    requests to the helper socket; fake the update answer; corrupt the saved settings.
-5. Push, then create a GitHub pre-release with the DMG and its SHA-256 in the notes.
+5. Push, then create a GitHub pre-release with the DMG and its `.sig` attached and the DMG's
+   SHA-256 in the notes. Without the `.sig`, the app offers no Install for that release.
 
 ## What an agent must not do
 
@@ -167,7 +172,7 @@ apps (such as Karabiner-Elements) may depend on it.
   common Windows shortcut, because the global hotkey hides it from the remote app.
 - **The README's "Privacy" section is a contract.** No event taps, no Input Monitoring, no
   network access at runtime except the update check (GitHub releases API, at most daily, can
-  be turned off, never downloads or installs), no clipboard persistence or logging, and a
+  be turned off; downloads and installs an update only when the user chooses Install), no clipboard persistence or logging, and a
   helper that can only send keys. If a change would break any of these, stop and ask. If a
   change alters what the app can see or do, update that section in the same change. Avoid
   wording in code and docs that suggests capturing or recording input.
@@ -175,6 +180,12 @@ apps (such as Karabiner-Elements) may depend on it.
 - **Signing.** Accessibility (TCC) is tied to the code signature. Ad-hoc builds change the
   cdhash every time, so `build.sh` resets the stale entry; certificate builds keep it. Do not
   remove that reset or the identity selection.
+- **In-app updates** trust three things, all required: the file comes from a TypeThru release
+  URL, its Ed25519 signature matches `UpdateKey.publicKey`, and the new app is newer, has the
+  same bundle ID, and (unless the running copy is ad-hoc) satisfies the running copy's
+  designated requirement. Never weaken one of these, and never change the release certificate
+  or update key: users would have to reinstall from the disk image. The private key and
+  certificate stay in the release signer's keychain only.
 - **Accessibility is required for every method**, including Virtual Keyboard, because
   Esc-to-stop reads key state. Relaxing this needs testing without the permission first.
 
@@ -182,14 +193,16 @@ apps (such as Karabiner-Elements) may depend on it.
 
 macOS ties Accessibility to the signature. `build.sh` uses the first it finds:
 `TYPETHRU_SIGN_IDENTITY` (a certificate name or hash; `-` forces ad-hoc), a Developer ID
-Application certificate, an Apple Development certificate, then ad-hoc. With a certificate the
+Application certificate, the self-signed "TypeThru Release" certificate (`make cert`), an Apple
+Development certificate, then ad-hoc. Releases are signed with "TypeThru Release", so in-app
+updates keep Accessibility; it contains only that name. With a certificate the
 permission survives rebuilds; ad-hoc builds reset it, including for the copy in Applications,
 because both share the bundle ID. A self-signed certificate also works:
 `TYPETHRU_SIGN_IDENTITY='TypeThru Local' make build`.
 
-`make package` builds `TypeThru-<version>.dmg`. With a Developer ID it signs with the hardened
+`make package` builds `TypeThru-<version>.dmg` and its update signature `TypeThru-<version>.dmg.sig`. With a Developer ID it signs with the hardened
 runtime and notarizes when `TYPETHRU_NOTARY_PROFILE` names a `notarytool` keychain profile.
-Releases are GitHub pre-releases with the DMG attached; bump the version in `build.sh` first.
+Releases are GitHub pre-releases with the DMG and its `.sig` attached; bump the version in `build.sh` first.
 The README keeps user steps short; put detail for contributors here.
 
 ## Verifying changes
@@ -198,7 +211,8 @@ Agents can verify: `make check` (and its parts), `--print-map`, `--check-protoco
 `VirtualKeyboard.status()` via the readiness probe.
 
 Only the user can verify: real typing into a remote session, setup and uninstall, system
-extension approval, the first-run onboarding, and installing from the disk image (Gatekeeper's
+extension approval, the first-run onboarding (including the launch-at-login question), in-app
+update installs, `make cert` (it asks for the password), and installing from the disk image (Gatekeeper's
 Open Anyway, the move-to-Applications check). When a change affects
 these, list the exact manual steps for the user instead of claiming it works.
 

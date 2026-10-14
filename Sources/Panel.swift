@@ -4,7 +4,7 @@ import SwiftUI
 // Menu bar panel. It never activates TypeThru, so the app the user was typing into stays in front.
 
 enum PanelAction {
-    case typeClipboard, test(TypingTest), openSettings, openUpdate, quit
+    case typeClipboard, test(TypingTest), openSettings, openUpdate, installUpdate, quit
     case recordShortcut, resetShortcut, checkForUpdates, setUp, checkVirtualKeyboard, checkAccessibility, diagnostics, uninstall
 }
 
@@ -26,6 +26,7 @@ final class PanelModel: ObservableObject {
     @Published var checkUpdates = true
     @Published var update: Updates.Release?
     @Published var updateStatus = ""
+    @Published var installing = false
     var speeds: [String] = []
     var speedDetails: [String] = []
     var onChange: (() -> Void)?
@@ -93,10 +94,12 @@ struct PanelView: View {
             Image(systemName: "arrow.down.circle.fill").foregroundStyle(Brand.accent).font(.title3)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Update available").font(.callout.weight(.semibold))
-                Text("Version \(update.version) · you have \(Updates.currentVersion)").font(.caption).foregroundStyle(.secondary)
+                Text(model.installing ? model.updateStatus : "Version \(update.version) · you have \(Updates.currentVersion)")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Download") { model.perform?(.openUpdate) }.prominentGlass().tint(Brand.accent).controlSize(.small)
+            Button(model.installing ? "Installing…" : "Install") { model.perform?(.installUpdate) }
+                .prominentGlass().tint(Brand.accent).controlSize(.small).disabled(model.installing)
         }
         .padding(10)
         .glassRounded()
@@ -157,7 +160,7 @@ struct PanelView: View {
 }
 
 // Liquid Glass on macOS 26 and later; system materials before that.
-private extension View {
+extension View {
     @ViewBuilder func glassPanel() -> some View {
         if #available(macOS 26, *) {
             GlassEffectContainer { self.glassEffect(.regular.tint(Color.black.opacity(0.45)), in: .rect(cornerRadius: 26)) }

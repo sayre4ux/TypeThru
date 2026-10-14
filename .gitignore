@@ -1,6 +1,7 @@
 # Build output
 /TypeThru.app/
 /*.dmg
+/*.dmg.sig
 /.build/
 *.iconset/
 

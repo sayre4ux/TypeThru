@@ -30,5 +30,9 @@ if [ -n "${TYPETHRU_NOTARY_PROFILE-}" ]; then
     xcrun notarytool submit "$DMG" --keychain-profile "$TYPETHRU_NOTARY_PROFILE" --wait
     xcrun stapler staple "$DMG"
 fi
+# The app installs an update only with a valid signature from the key in Sources/UpdateKey.swift.
+swift scripts/update-key.swift sign "$DMG" > "$DMG.sig" || { rm -f "$DMG.sig"; exit 1; }
+codesign -dr - TypeThru.app 2>&1 | grep -q 'cdhash' &&
+    echo 'Warning: signed ad-hoc. Users who update in the app must allow Accessibility again. Run make cert first.'
 shasum -a 256 "$DMG"
-echo "Packaged $(pwd)/$DMG"
+echo "Packaged $(pwd)/$DMG and $DMG.sig. Attach both to the GitHub release."

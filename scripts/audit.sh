@@ -45,7 +45,7 @@ emails=$(git log --format='%ae%n%ce' ${RANGE:+"$RANGE"} | sort -u | grep -v '@us
 [ -z "$emails" ] && ok "commit emails are GitHub noreply addresses" || fail "personal email in commits to push: $emails"
 
 # 5. Repository hygiene.
-bad=$(git ls-files | grep -E '(^|/)(\.DS_Store|DEVLOG\.md|ResourceHashes\.swift)$|\.app/|\.dmg$|^\.build/|\.iconset/' || true)
+bad=$(git ls-files | grep -E '(^|/)(\.DS_Store|DEVLOG\.md|ResourceHashes\.swift)$|\.app/|\.dmg$|\.dmg\.sig$|^\.build/|\.iconset/' || true)
 [ -z "$bad" ] && ok "no build output or local files tracked" || fail "tracked files that belong local only: $bad"
 ignored=$(git ls-files -ci --exclude-standard)
 [ -z "$ignored" ] && ok "no tracked file is also ignored" || fail "tracked but ignored: $ignored"

@@ -553,16 +553,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// First run: Accessibility first, then Virtual Keyboard setup, so the two prompts never overlap.
     private func continueOnboarding() {
         let key = "virtualKeyboardOnboardingShown"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        guard !UserDefaults.standard.bool(forKey: key) else { return askLaunchAtLogin() }
         guard AXIsProcessTrusted() else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.continueOnboarding() }
             return
         }
+        askLaunchAtLogin()
         UserDefaults.standard.set(true, forKey: key)
         DispatchQueue.global(qos: .userInitiated).async {
             let status = VirtualKeyboard.status()
             DispatchQueue.main.async { if status != .ready { self.setupVirtualKeyboard() } }
         }
+    }
+
+    /// Asks once, on the first launch of a version that has this question, unless already on.
+    private func askLaunchAtLogin() {
+        let key = "launchAtLoginAsked"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        guard SMAppService.mainApp.status != .enabled else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let sheet = NSAlert()
+        sheet.messageText = "Open TypeThru at login?"
+        sheet.informativeText = "TypeThru starts when you log in, so \(currentShortcut.title) always works. You can change this in Settings."
+        sheet.addButton(withTitle: "Open at Login")
+        sheet.addButton(withTitle: "Not Now")
+        if sheet.runModal() == .alertFirstButtonReturn { setLaunchAtLogin(true) }
     }
 
     private func setUpPanel() {
@@ -662,6 +678,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Fetches the newest release again (saved offers carry no download links), installs it, and
+    /// reopens TypeThru. Falls back to the release page when it cannot.
+    private func installUpdate() {
+        let model = panel.model
+        guard !busy, !model.installing else { NSSound.beep(); return }
+        model.installing = true
+        model.updateStatus = "Downloading…"
+        Updates.check { [weak self] result in
+            guard let self else { return }
+            let release: Updates.Release
+            switch result {
+            case .success(let found?): release = found
+            case .success(nil):
+                (model.update, model.installing, model.updateStatus) = (nil, false, "TypeThru is up to date.")
+                return
+            case .failure: return self.updateFailed("Could not reach GitHub. Try again later.")
+            }
+            model.update = release
+            DispatchQueue.global(qos: .userInitiated).async {
+                let outcome = Result { try Updates.install(release) }
+                DispatchQueue.main.async {
+                    switch outcome {
+                    case .success: self.relaunch()
+                    case .failure(let error): self.updateFailed(error.localizedDescription)
+                    }
+                }
+            }
+        }
+    }
+
+    private func updateFailed(_ reason: String) {
+        panel.model.installing = false
+        panel.model.updateStatus = "The update was not installed."
+        NSApp.activate(ignoringOtherApps: true)
+        let sheet = NSAlert()
+        sheet.messageText = "Could not install the update"
+        sheet.informativeText = reason + "\n\nYou can download it from the release page and replace TypeThru in Applications."
+        sheet.addButton(withTitle: "Open Release Page")
+        sheet.addButton(withTitle: "Cancel")
+        if sheet.runModal() == .alertFirstButtonReturn, let page = panel.model.update?.page { NSWorkspace.shared.open(page) }
+    }
+
+    /// Opens the new copy once this one has quit.
+    private func relaunch() {
+        let opener = Process()
+        opener.executableURL = URL(fileURLWithPath: "/bin/sh")
+        opener.arguments = ["-c", "while /bin/kill -0 \"$1\" 2>/dev/null; do /bin/sleep 0.2; done; /usr/bin/open \"$2\"",
+                            "sh", String(getpid()), Bundle.main.bundlePath]
+        try? opener.run()
+        NSApp.terminate(nil)
+    }
+
     @objc private func togglePanel() {
         guard let button = statusItem.button else { return }
         // A click on the menu bar icon first closes the open panel; do not reopen it.
@@ -740,6 +808,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .openSettings: openSettings()
         case .checkForUpdates: checkForUpdates(manual: true)
         case .openUpdate: if let page = panel.model.update?.page { NSWorkspace.shared.open(page) }
+        case .installUpdate: installUpdate()
         case .typeClipboard: trigger(fromMenu: true)
         case .test(let test): trigger(fromMenu: true, test: test)
         case .setUp: setupVirtualKeyboard()

@@ -63,7 +63,9 @@ Click the menu bar icon to change the speed or run a typing test. Open **Setting
 change the shortcut, open TypeThru at login, or turn options off. Control alone is the safest
 shortcut, because other modifier keys also reach the remote session.
 
-When a new version is out, the panel shows it with a **Download** button.
+When a new version is out, the panel shows it with an **Install** button. TypeThru downloads
+it, checks that it is signed by TypeThru, replaces itself, and reopens. Accessibility stays
+allowed.
 
 ## Troubleshooting
 
@@ -83,8 +85,10 @@ When a new version is out, the panel shows it with a **Download** button.
 - The clipboard is read only when you ask it to type, and is never saved or logged.
 - The only network access is checking GitHub for a new version, at most once a day. The
   request contains only the app name and version; GitHub sees your IP address, as with any
-  website. Turn it off in **Settings › Updates**. Nothing is downloaded or installed
-  automatically.
+  website. Turn it off in **Settings › Updates**.
+- An update is downloaded and installed only when you choose **Install**. TypeThru installs it
+  only if it comes from TypeThru's GitHub releases, carries TypeThru's update signature, and is
+  signed with the same certificate as the copy you have. Nothing is installed automatically.
 - The virtual keyboard helper runs as root because the driver requires it. It accepts key
   presses only from your Mac account and cannot read keyboard input. Other apps running as you
   could also use it to send key presses, even without Accessibility permission, so uninstall

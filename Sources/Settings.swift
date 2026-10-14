@@ -54,9 +54,10 @@ struct SettingsView: View {
                     Text(model.updateStatus).foregroundStyle(.secondary)
                     Spacer()
                     if model.update != nil {
-                        Button("Download") { model.perform?(.openUpdate) }.buttonStyle(.borderedProminent).tint(Brand.accent)
+                        Button(model.installing ? "Installing…" : "Install") { model.perform?(.installUpdate) }
+                            .prominentGlass().tint(Brand.accent).disabled(model.installing)
                     }
-                    Button("Check Now") { model.perform?(.checkForUpdates) }
+                    Button("Check Now") { model.perform?(.checkForUpdates) }.disabled(model.installing)
                 }
             }
 
@@ -68,6 +69,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(GlassBackground().ignoresSafeArea())
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -81,6 +84,24 @@ struct SettingsView: View {
     private func binding<T>(_ keyPath: ReferenceWritableKeyPath<PanelModel, T>) -> Binding<T> { model.binding(keyPath) }
 }
 
+/// Liquid Glass on macOS 26 and later, with the panel's dark tint; a blurred material before that.
+private struct GlassBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        if #available(macOS 26, *) {
+            let glass = NSGlassEffectView()
+            glass.tintColor = NSColor.black.withAlphaComponent(0.45)
+            return glass
+        }
+        let material = NSVisualEffectView()
+        material.material = .hudWindow
+        material.blendingMode = .behindWindow
+        material.state = .active
+        return material
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {}
+}
+
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     var onClose: (() -> Void)?
     private var window: NSWindow?
@@ -89,8 +110,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
             window.title = "TypeThru Settings"
-            window.styleMask = [.titled, .closable]
+            window.styleMask = [.titled, .closable, .fullSizeContentView]
+            window.titlebarAppearsTransparent = true
             window.appearance = NSAppearance(named: .darkAqua)
+            // The window is clear, so the glass behind the form shows the desktop like the panel.
+            window.isOpaque = false
+            window.backgroundColor = .clear
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
