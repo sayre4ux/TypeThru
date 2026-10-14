@@ -241,6 +241,7 @@ final class Typer {
                     return .cancelled(typed: index, total: total,
                                       reason: "Virtual Keyboard became unavailable; the last character may have been sent")
                 }
+                pause(Typer.settle(after: ch))
                 continue
             }
             // Construct a complete character before sending, so allocation failure cannot
@@ -252,8 +253,18 @@ final class Typer {
                 method.deliver(event, to: target)
                 pause(wait)
             }
+            pause(Typer.settle(after: ch))
         }
         return .done
+    }
+
+    // DECISION: remote apps can handle a line break after the keys that follow it (a new line
+    // appeared a few characters late, and a blank line was lost), so give each one time to land.
+    static let lineBreakSettle: TimeInterval = 0.3
+
+    /// Extra wait after `ch`, on top of the typing interval.
+    static func settle(after ch: Character) -> TimeInterval {
+        ["\n", "\r", "\r\n"].contains(ch) ? lineBreakSettle : 0
     }
 
     /// Quartz events hold each key for 10 ms, so the rest of the interval follows the key-up.
