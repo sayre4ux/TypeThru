@@ -25,7 +25,8 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 | `Tests/fuzz-protocol.cpp` | Fuzz test for `valid()` against the protocol table, with AddressSanitizer and UBSan |
 | `scripts/build.sh` | Fetches the driver source at a pinned revision, builds and signs a universal `TypeThru.app` |
 | `scripts/test.sh` | Runs both test suites; posts no input |
-| `scripts/package.sh` | Runs `build.sh` and makes the download disk image; notarizes it when configured |
+| `scripts/package.sh` | Runs `build.sh` and makes the download disk image (Finder lays out its window); notarizes it when configured |
+| `scripts/dmg-background.swift` | Draws the disk image window background with the install hint |
 | `scripts/audit.sh` | Security and repository audit (see Before every push) |
 | `scripts/check.sh` | Tests, a throwaway build, and the audit; run before every push |
 | `scripts/make-icon.sh`, `scripts/make-icon.swift` | Redraw `Resources/AppIcon.icns` and the README logos |
@@ -84,7 +85,8 @@ Also review by hand: the diff itself, and that `.gitignore` covers any new kind 
 ## Release checklist
 
 1. Bump `CFBundleShortVersionString` and `CFBundleVersion` in `scripts/build.sh`.
-2. `make check`, then `make package`. It writes `TypeThru-<version>.dmg` and `.dmg.sig`; it needs
+2. `make check`, then `make package` with the Mac unlocked (it lets Finder lay out the disk image window;
+   allow the terminal to control Finder once). It writes `TypeThru-<version>.dmg` and `.dmg.sig`; it needs
    the update key in the keychain and should sign with "TypeThru Release" (it warns on ad-hoc).
 3. Install the DMG on a clean user account or VM: Open Anyway, Accessibility, the
    launch-at-login question, Set Up, the typing tests in a remote session, Settings, Check Now,
