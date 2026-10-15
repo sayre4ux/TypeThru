@@ -53,9 +53,8 @@ end tell
 APPLESCRIPT
 # DECISION: after Finder, which removes a volume icon it finds while setting up the window.
 cp Resources/AppIcon.icns "$VOLUME/.VolumeIcon.icns"
-# C: use the volume icon. E: show "TypeThru" without ".app".
-{ SetFile -a C "$VOLUME" && SetFile -a E "$VOLUME/TypeThru.app"; } 2>/dev/null ||
-    echo 'Note: SetFile not found (Xcode command line tools), so the disk keeps the plain icon and the .app name.'
+# DECISION: no Finder flags on the app itself; they break the strict signature check updates use.
+SetFile -a C "$VOLUME" 2>/dev/null || echo 'Note: SetFile not found (Xcode command line tools), so the disk keeps the plain icon.'
 sync
 hdiutil detach -quiet "$VOLUME"
 hdiutil convert -quiet "$STAGE.rw.dmg" -format UDZO -imagekey zlib-level=9 -o "$DMG"
