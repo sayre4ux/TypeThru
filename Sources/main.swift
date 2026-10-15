@@ -183,6 +183,13 @@ final class Typer {
     private let source = CGEventSource(stateID: .hidSystemState)
     private let keyboardType = Int64(LMGetKbdType())
 
+    /// Leaves out line breaks at the end, so a copied command does not run by itself in a remote terminal.
+    static func withoutTrailingLineBreaks(_ text: String) -> String {
+        var text = Substring(text)
+        while text.last?.isNewline == true { text.removeLast() }
+        return String(text)
+    }
+
     // Symbols with no key on common layouts, typed as plain keys that read the same.
     // DECISION: letters (such as é) are not replaced, because dropping an accent changes a word.
     static let replacements: [Character: String] = [
@@ -500,8 +507,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // DECISION: one dark look everywhere, alerts included, to match the panel and icon.
-        NSApp.appearance = NSAppearance(named: .darkAqua)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = Brand.menuBarImage()
         statusItem.button?.target = self
@@ -946,11 +951,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             lastAttempt += "\nNot started: Accessibility permission missing."
             promptForAccessibility(); return
         }
-        guard let original = testText ?? NSPasteboard.general.string(forType: .string), !original.isEmpty else {
+        let copied = testText ?? NSPasteboard.general.string(forType: .string) ?? ""
+        let original = Typer.withoutTrailingLineBreaks(copied)
+        guard !original.isEmpty else {
             lastAttempt += "\nNot started: clipboard has no text."
             alert("Nothing typed", "The clipboard has no text. You can try a typing test from the TypeThru panel.")
             return
         }
+        if original.count < copied.count { lastAttempt += "\nLeft out the line break at the end." }
         let map = shiftReturn ? Typer.shiftReturn(buildKeyMap()) : buildKeyMap()
         if shiftReturn { lastAttempt += "\nLine breaks: Shift+Return." }
         // The smart symbols test exists to show the replacements, so it always replaces.

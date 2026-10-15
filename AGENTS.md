@@ -12,7 +12,7 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 |---|---|
 | `Makefile` | Entry point: `make build`, `test`, `package`, `icon`, `audit`, `check`, `hooks`, `cert`, `update-key` |
 | `Sources/main.swift` | App: key map from the active layout, Quartz typing methods, typing tests, global hotkey, onboarding, diagnostics |
-| `Sources/Panel.swift` | Menu bar panel (SwiftUI, Liquid Glass on macOS 26+). A non-activating panel, so the target app stays in front |
+| `Sources/Panel.swift` | Menu bar panel (SwiftUI, Liquid Glass on macOS 26+, light or dark with the system). A non-activating panel, so the target app stays in front |
 | `Sources/Settings.swift` | Settings window (SwiftUI form) for rarely changed options; shares the panel's model |
 | `Sources/Updates.swift` | Daily check of the GitHub releases API; on Install, downloads, verifies, and replaces the app |
 | `Sources/UpdateKey.swift` | Public key for update signatures, written by `make update-key` |
@@ -124,7 +124,8 @@ unregistered meanwhile. The app waits until all
 modifiers and the hotkey key are up, then types into the app that was in front when the
 shortcut was pressed. `StopWatcher` polls every 10 ms while typing and stops on Esc, a new
 mouse click, or a change of front app or front window (Accessibility). Return can be typed as
-Shift+Return (`Typer.shiftReturn`), on by default. The whole text is
+Shift+Return (`Typer.shiftReturn`), on by default. Line breaks at the end are left out
+(`Typer.withoutTrailingLineBreaks`), so a copied command never runs by itself. The whole text is
 checked against the layout before anything is sent; unsupported characters abort the run.
 
 **Quartz methods** build a `CGEvent` pair per character (with explicit Shift

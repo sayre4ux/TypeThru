@@ -19,7 +19,8 @@
 - **Real key presses** through a virtual keyboard, so remote sessions accept them.
 - **Five speeds**, from an average typist to an unrealistic 600 words per minute.
 - **Smart symbols**: bullets, curly quotes, and dashes are typed as plain keys.
-- **New lines, not sends**: line breaks are typed as Shift+Return.
+- **New lines, not sends**: line breaks are typed as Shift+Return, and a line break at the
+  end is left out, so a copied command never runs by itself.
 - **Stops instantly** when you press Esc, click, or switch apps.
 - **Your shortcut**: Control+\\ by default, or choose your own.
 - **Lightweight**: about 6 MB, under 50 MB of memory, and no CPU while idle.

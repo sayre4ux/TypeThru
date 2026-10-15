@@ -84,12 +84,12 @@ struct SettingsView: View {
     private func binding<T>(_ keyPath: ReferenceWritableKeyPath<PanelModel, T>) -> Binding<T> { model.binding(keyPath) }
 }
 
-/// Liquid Glass on macOS 26 and later, with the panel's dark tint; a blurred material before that.
+/// Liquid Glass on macOS 26 and later, with the panel's tint; a blurred material before that.
 private struct GlassBackground: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         if #available(macOS 26, *) {
-            let glass = NSGlassEffectView()
-            glass.tintColor = NSColor.black.withAlphaComponent(0.45)
+            let glass = TintedGlass()
+            glass.tintColor = Brand.glassTint
             return glass
         }
         let material = NSVisualEffectView()
@@ -102,6 +102,15 @@ private struct GlassBackground: NSViewRepresentable {
     func updateNSView(_ view: NSView, context: Context) {}
 }
 
+/// Resolves the tint again when the system switches between light and dark mode.
+@available(macOS 26, *)
+private final class TintedGlass: NSGlassEffectView {
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        effectiveAppearance.performAsCurrentDrawingAppearance { tintColor = NSColor(cgColor: Brand.glassTint.cgColor) }
+    }
+}
+
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     var onClose: (() -> Void)?
     private var window: NSWindow?
@@ -112,7 +121,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             window.title = "TypeThru Settings"
             window.styleMask = [.titled, .closable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
-            window.appearance = NSAppearance(named: .darkAqua)
             // The window is clear, so the glass behind the form shows the desktop like the panel.
             window.isOpaque = false
             window.backgroundColor = .clear

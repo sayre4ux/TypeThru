@@ -164,6 +164,8 @@ section("Line breaks as Shift+Return") {
     }
     check(["\n", "\r", "\r\n"].allSatisfy { Typer.settle(after: $0) == Typer.lineBreakSettle }
           && Typer.settle(after: "a") == 0 && Typer.settle(after: "\t") == 0, "only line breaks wait to settle")
+    check(Typer.withoutTrailingLineBreaks("ls -la\r\n\n") == "ls -la" && Typer.withoutTrailingLineBreaks("a\nb") == "a\nb"
+          && Typer.withoutTrailingLineBreaks("\n\u{2029}") == "", "line breaks at the end are left out, others kept")
     check(shifted["\t"]?.shift == false && shifted["a"]?.shift == false, "only line breaks change")
     let separators = typer.replacingUntypable(in: "a\u{2028}b\u{2029}c\u{000B}d", map: shifted, method: .virtualKeyboard)
     check(separators.text == "a\nb\nc\nd" && shifted["\n"]?.shift == true, "other line breaks become Shift+Return")

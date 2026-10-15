@@ -71,7 +71,6 @@ struct PanelView: View {
         .frame(width: 340)
         .noFocusRing()
         .glassPanel()
-        .environment(\.colorScheme, .dark)
     }
 
     private var header: some View {
@@ -163,7 +162,7 @@ struct PanelView: View {
 extension View {
     @ViewBuilder func glassPanel() -> some View {
         if #available(macOS 26, *) {
-            GlassEffectContainer { self.glassEffect(.regular.tint(Color.black.opacity(0.45)), in: .rect(cornerRadius: 26)) }
+            GlassEffectContainer { self.glassEffect(.regular.tint(Color(nsColor: Brand.glassTint)), in: .rect(cornerRadius: 26)) }
         } else {
             background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
@@ -205,7 +204,6 @@ final class GlassPanel: NSPanel {
         // DECISION: the glass draws its own edge; a window shadow outlines the square frame.
         hasShadow = false
         hidesOnDeactivate = false
-        appearance = NSAppearance(named: .darkAqua)
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         contentView = content
     }

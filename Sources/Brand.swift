@@ -6,6 +6,11 @@ enum Brand {
     static let cyan = NSColor(red: 0.36, green: 0.88, blue: 1.00, alpha: 1)
     static let violet = NSColor(red: 0.55, green: 0.38, blue: 1.00, alpha: 1)
     static let accent = Color(red: 0.42, green: 0.58, blue: 1.00)
+    /// Glass tint for the panel and Settings, following light and dark mode.
+    static let glassTint = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor.black.withAlphaComponent(0.45) : NSColor.white.withAlphaComponent(0.35)
+    }
 
     private static func point(_ rect: NSRect, _ x: CGFloat, _ y: CGFloat) -> NSPoint {
         NSPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
