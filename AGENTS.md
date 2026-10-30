@@ -125,7 +125,10 @@ modifiers and the hotkey key are up, then types into the app that was in front w
 shortcut was pressed. `StopWatcher` polls every 10 ms while typing and stops on Esc, a new
 mouse click, or a change of front app or front window (Accessibility). Return can be typed as
 Shift+Return (`Typer.shiftReturn`), on by default. Line breaks at the end are left out
-(`Typer.withoutTrailingLineBreaks`), so a copied command never runs by itself. The whole text is
+(`Typer.withoutTrailingLineBreaks`), so a copied command never runs by itself. Markdown
+`***`, `**`, and `*` spans (`Typer.markdown`, setting `markdown`: keep, remove marks, or
+format) lose their marks and become Control+I/Control+B toggles; underscores are left alone
+because code uses them. The whole text is
 checked against the layout before anything is sent; unsupported characters abort the run.
 
 **Quartz methods** build a `CGEvent` pair per character (with explicit Shift
@@ -141,11 +144,13 @@ helper, which presses the key on the Karabiner DriverKit virtual keyboard:
 | 0 | Protocol version, always 1 |
 | 1 | 0 = readiness probe, 1 = key press |
 | 2 | HID usage (4–56 or 100) |
-| 3 | Modifier: 0 none, 2 left Shift |
+| 3 | Modifier: 0 none, 2 left Shift, 1 left Control (only with usage 5 or 12: Control+B, Control+I) |
 | 4–5 | Hold time in ms, little-endian, 10–200 (the app sends 80) |
 | 6–7 | Gap after release in ms, little-endian, 0–500 |
 
-Reply byte: 0 done or ready, 1 driver not ready, 2 invalid packet. The helper accepts
+Reply byte: 0 done or ready, 1 driver not ready, 2 invalid packet, 3 ready and Control+B/I
+supported (only to a probe with byte 2 set to 1; helpers before 0.6 answer 0, and the app then
+types without formatting and asks the user to run Set Up again). The helper accepts
 connections only from the uid given at install, via `getpeereid`. Socket:
 `/var/run/io.github.sayre4ux.typethru.virtual-keyboard.sock`, mode 0600, owned by that user.
 

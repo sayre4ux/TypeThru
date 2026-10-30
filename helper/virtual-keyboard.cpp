@@ -38,6 +38,8 @@ int main(int argc, char** argv) {
         if (!valid(good) || valid(bad)) return 1;
         memcpy(bad, good, 8); bad[3] = 8; if (valid(bad)) return 1;
         memcpy(bad, good, 8); bad[4] = 0; if (valid(bad)) return 1;
+        const uint8_t bold[] = {1,1,5,1,80,0,120,0};
+        memcpy(bad, bold, 8); bad[2] = 4; if (!valid(bold) || valid(bad)) return 1;
         std::cout << "TypeThru Virtual Keyboard protocol checks passed (no input sent).\n";
         return 0;
     }
@@ -94,10 +96,13 @@ int main(int argc, char** argv) {
             uint8_t response = 2;
             if (received == 8 && valid(packet)) {
                 response = ready ? 0 : 1;
+                // A probe with byte 2 set to 1 asks whether Control+B and Control+I are supported.
+                if (ready && packet[1] == 0 && packet[2] == 1) response = 3;
                 if (ready && packet[1] == 1 && !stopping) {
                     dk::virtual_hid_device_driver::hid_report::keyboard_input report;
-                    if (packet[3] == 2) {
-                        report.modifiers.insert(dk::virtual_hid_device_driver::hid_report::modifier::left_shift);
+                    if (packet[3] == 2 || packet[3] == 1) {
+                        report.modifiers.insert(packet[3] == 2 ? dk::virtual_hid_device_driver::hid_report::modifier::left_shift
+                                                               : dk::virtual_hid_device_driver::hid_report::modifier::left_control);
                         client->async_post_report(report);
                         std::this_thread::sleep_for(20ms);
                     }

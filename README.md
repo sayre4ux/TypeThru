@@ -19,6 +19,8 @@
 - **Real key presses** through a virtual keyboard, so remote sessions accept them.
 - **Five speeds**, from an average typist to an unrealistic 600 words per minute.
 - **Smart symbols**: bullets, curly quotes, and dashes are typed as plain keys.
+- **Bold and italic**: Markdown such as `**bold**` and `*italic*` from chat and AI tools is
+  typed as real bold and italic (Control+B and Control+I), or with the marks removed.
 - **New lines, not sends**: line breaks are typed as Shift+Return, and a line break at the
   end is left out, so a copied command never runs by itself.
 - **Stops instantly** when you press Esc, click, or switch apps.
@@ -91,7 +93,8 @@ allowed.
   only if it comes from TypeThru's GitHub releases, carries TypeThru's update signature, and is
   signed with the same certificate as the copy you have. Nothing is installed automatically.
 - The virtual keyboard helper runs as root because the driver requires it. It accepts key
-  presses only from your Mac account and cannot read keyboard input. Other apps running as you
+  presses only from your Mac account and cannot read keyboard input. Besides Shift, the only
+  shortcuts it presses are Control+B and Control+I, for bold and italic. Other apps running as you
   could also use it to send key presses, even without Accessibility permission, so uninstall
   TypeThru when you no longer need it.
 - Setup and uninstall run as administrator only after you enter your password. First,

@@ -171,6 +171,30 @@ section("Line breaks as Shift+Return") {
     check(separators.text == "a\nb\nc\nd" && shifted["\n"]?.shift == true, "other line breaks become Shift+Return")
 }
 
+section("Markdown bold and italic") {
+    func parse(_ text: String) -> (String, [Int: [TextFormat]]) { let r = Typer.markdown(text); return (r.text, r.formats) }
+    let email = parse("Could you get the **BU approval** for it?")
+    check(email.0 == "Could you get the BU approval for it?" && email.1 == [18: [.bold], 29: [.bold]], "**bold** becomes Control+B around the words")
+    let quoted = parse("confirm whether **\u{201D}After remediation\u{201D}** means")
+    check(quoted.0 == "confirm whether \u{201D}After remediation\u{201D} means" && quoted.1 == [16: [.bold], 35: [.bold]], "bold around quotes")
+    check(parse("an *italic* word").1 == [3: [.italic], 9: [.italic]], "*italic* becomes Control+I")
+    check(parse("***both***") == ("both", [0: [.bold, .italic], 4: [.bold, .italic]]), "***both*** is bold and italic")
+    check(parse("**bold *and italic* text**") == ("bold and italic text", [0: [.bold], 5: [.italic], 15: [.italic], 20: [.bold]]),
+          "italic inside bold")
+    check(parse("**a** **b**").1 == [0: [.bold], 1: [.bold], 2: [.bold], 3: [.bold]], "formatting stops at the space between spans")
+    for plain in ["2**8 = 256", "5 * 3 * 2", "rm *.txt *.md", "def f(*args, **kwargs):", "/* note */", "a*b*c",
+                  "__init__ and snake_case_name", "** not bold **", "**open\nclose**", "*", "**", "", "***"] {
+        check(Typer.markdown(plain).text == plain && Typer.markdown(plain).spans == 0, "left as is: \(plain.debugDescription)")
+    }
+    let stroke = KeyStroke(keyCode: 11, shift: false, control: true)
+    let events = typer.shortcutEvents(stroke, delay: 0.05)!
+    check(events.count == 4 && events[0].0.type == .flagsChanged && events[0].0.flags.contains(.maskControl),
+          "Control goes down first")
+    check(events[1].0.getIntegerValueField(.keyboardEventKeycode) == 11 && events[1].0.flags == .maskControl
+          && events[2].0.type == .keyUp, "B pressed with Control only")
+    check(events[3].0.type == .flagsChanged && events[3].0.flags.isEmpty, "Control released last")
+}
+
 section("Custom shortcut") {
     let standard = Shortcut.standard
     check(standard.problem == nil && standard.caution == nil, "Control+Backslash is allowed without a warning")

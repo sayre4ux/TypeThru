@@ -147,6 +147,11 @@ enum VirtualKeyboard {
     static func press(_ stroke: KeyStroke, interval: TimeInterval) -> Bool {
         guard let usage = usages[stroke.keyCode] else { return false }
         let (hold, gap) = timing(for: interval)
-        return exchange([1, 1, usage, stroke.shift ? 2 : 0, UInt8(hold), 0, UInt8(gap & 255), UInt8(gap >> 8)]) == 0
+        let modifier: UInt8 = stroke.control ? 1 : stroke.shift ? 2 : 0
+        return exchange([1, 1, usage, modifier, UInt8(hold), 0, UInt8(gap & 255), UInt8(gap >> 8)]) == 0
     }
+
+    /// Whether the helper accepts Control+B and Control+I. A helper from before 0.6 answers this
+    /// readiness probe with 0, a newer one with 3.
+    static func supportsFormatting() -> Bool { exchange([1, 0, 1, 0, 0, 0, 0, 0]) == 3 }
 }

@@ -9,6 +9,26 @@ import ServiceManagement
 struct KeyStroke {
     let keyCode: CGKeyCode
     let shift: Bool
+    var control = false
+}
+
+/// What happens to Markdown marks such as **bold** and *italic* in the copied text.
+enum MarkdownMode: Int, CaseIterable {
+    case keep, removeMarks, format
+
+    var title: String {
+        switch self {
+        case .keep: return "Type as is"
+        case .removeMarks: return "Remove the marks"
+        case .format: return "Bold and italic"
+        }
+    }
+}
+
+/// Formatting typed as Control plus this letter, as Word, Outlook, and most editors on Windows use.
+enum TextFormat: Character, Comparable {
+    case bold = "b", italic = "i"
+    static func < (a: TextFormat, b: TextFormat) -> Bool { a.rawValue < b.rawValue }
 }
 
 /// Builds a character -> key press table from the active keyboard layout.
@@ -183,6 +203,55 @@ final class Typer {
     private let source = CGEventSource(stateID: .hidSystemState)
     private let keyboardType = Int64(LMGetKbdType())
 
+    /// Removes Markdown bold and italic marks and returns, by character position in the result,
+    /// where formatting switches on or off. Marks count only around text on one line and not
+    /// inside a word, so 2**8, 5 * 3, *.txt, and **kwargs stay as they are.
+    static func markdown(_ text: String) -> (text: String, formats: [Int: [TextFormat]], spans: Int) {
+        let chars = Array(text), n = chars.count
+        var removed = [Bool](repeating: false, count: n)
+        var styles = [Set<TextFormat>](repeating: [], count: n)
+        var spans = 0
+        func inWord(_ i: Int) -> Bool { i >= 0 && i < n && (chars[i].isLetter || chars[i].isNumber) }
+        func mark(_ d: [Character], at i: Int) -> Bool {
+            i >= 0 && i + d.count <= n && d.indices.allSatisfy { chars[i + $0] == d[$0] && !removed[i + $0] }
+        }
+        // DECISION: asterisks only; underscores are common in code and file names (__init__).
+        // Longest marks first, so ***both*** and **bold** are not read as italics.
+        let marks: [(String, Set<TextFormat>)] = [("***", [.bold, .italic]), ("**", [.bold]), ("*", [.italic])]
+        for (delimiter, format) in marks {
+            let d = Array(delimiter), m = d.count, c = d[0]
+            func runsOn(_ i: Int) -> Bool { i >= 0 && i < n && chars[i] == c && !removed[i] }
+            var i = 0
+            while i + m < n {
+                guard mark(d, at: i), !inWord(i - 1), !runsOn(i - 1), !runsOn(i + m),
+                      !chars[i + m].isWhitespace else { i += 1; continue }
+                var close: Int?
+                var j = i + m + 1
+                while j + m <= n, !chars[j - 1].isNewline {
+                    if mark(d, at: j), !chars[j - 1].isWhitespace, !runsOn(j - 1), !runsOn(j + m), !inWord(j + m) {
+                        close = j; break
+                    }
+                    j += 1
+                }
+                guard let close, !chars[(i + m)..<close].contains(where: \.isNewline) else { i += 1; continue }
+                for k in 0..<m { removed[i + k] = true; removed[close + k] = true }
+                for k in (i + m)..<close where !removed[k] { styles[k].formUnion(format) }
+                spans += 1
+                i = close + m
+            }
+        }
+        var result = "", formats: [Int: [TextFormat]] = [:], current = Set<TextFormat>()
+        for k in 0..<n where !removed[k] {
+            if styles[k] != current {
+                formats[result.count] = current.symmetricDifference(styles[k]).sorted()
+                current = styles[k]
+            }
+            result.append(chars[k])
+        }
+        if !current.isEmpty { formats[result.count] = current.sorted() }
+        return (result, formats, spans)
+    }
+
     /// Leaves out line breaks at the end, so a copied command does not run by itself in a remote terminal.
     static func withoutTrailingLineBreaks(_ text: String) -> String {
         var text = Substring(text)
@@ -235,14 +304,34 @@ final class Typer {
     }
 
     /// Types at `interval` seconds per character (Shift adds a little more).
+    /// `formats` switches bold or italic on or off before the character at each position.
     func type(_ text: String, map: [Character: KeyStroke], interval: TimeInterval,
-              method: TypingMethod, target: pid_t) -> TypeResult {
+              method: TypingMethod, target: pid_t, formats: [Int: [TextFormat]] = [:]) -> TypeResult {
         let total = text.count
         let delay = Typer.delay(for: interval)
         let watcher = StopWatcher(target: target)
         defer { watcher.finish() }
+        func toggle(at index: Int) -> Bool {
+            for format in formats[index] ?? [] {
+                guard let key = map[format.rawValue] else { return false }
+                let stroke = KeyStroke(keyCode: key.keyCode, shift: false, control: true)
+                if method == .virtualKeyboard {
+                    guard VirtualKeyboard.press(stroke, interval: interval) else { return false }
+                    continue
+                }
+                guard let events = shortcutEvents(stroke, delay: delay) else { return false }
+                for (event, wait) in events {
+                    method.deliver(event, to: target)
+                    pause(wait)
+                }
+            }
+            return true
+        }
         for (index, ch) in text.enumerated() {
             if let reason = watcher.stopReason { return .cancelled(typed: index, total: total, reason: reason) }
+            guard toggle(at: index) else {
+                return .cancelled(typed: index, total: total, reason: "bold or italic could not be switched")
+            }
             if method == .virtualKeyboard {
                 guard let stroke = map[ch], VirtualKeyboard.press(stroke, interval: interval) else {
                     return .cancelled(typed: index, total: total,
@@ -262,7 +351,17 @@ final class Typer {
             }
             pause(Typer.settle(after: ch))
         }
+        guard toggle(at: total) else { return .cancelled(typed: total, total: total, reason: "bold or italic could not be switched off") }
         return .done
+    }
+
+    /// Control plus a key, for bold and italic. Built in full before sending, like a character.
+    func shortcutEvents(_ stroke: KeyStroke, delay: TimeInterval) -> [(CGEvent, TimeInterval)]? {
+        guard let controlDown = makeEvent(CGKeyCode(kVK_Control), down: true, shift: false, control: true),
+              let down = makeEvent(stroke.keyCode, down: true, shift: false, control: true),
+              let up = makeEvent(stroke.keyCode, down: false, shift: false, control: true),
+              let controlUp = makeEvent(CGKeyCode(kVK_Control), down: false, shift: false) else { return nil }
+        return [(controlDown, delay / 2), (down, 0.01), (up, delay / 2), (controlUp, delay)]
     }
 
     // DECISION: remote apps can handle a line break after the keys that follow it (a new line
@@ -311,11 +410,12 @@ final class Typer {
         return [(down, 0.01), (up, delay)]
     }
 
-    private func makeEvent(_ code: CGKeyCode, down: Bool, shift: Bool) -> CGEvent? {
+    private func makeEvent(_ code: CGKeyCode, down: Bool, shift: Bool, control: Bool = false) -> CGEvent? {
         guard let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down) else { return nil }
-        // A real keyboard reports Shift as a modifier change, not as a key down/up.
-        if code == CGKeyCode(kVK_Shift) { event.type = .flagsChanged }
-        event.flags = shift ? .maskShift : []
+        // A real keyboard reports modifiers as a modifier change, not as a key down/up.
+        if code == CGKeyCode(kVK_Shift) || code == CGKeyCode(kVK_Control) { event.type = .flagsChanged }
+        event.flags = CGEventFlags(rawValue: (shift ? CGEventFlags.maskShift.rawValue : 0)
+                                   | (control ? CGEventFlags.maskControl.rawValue : 0))
         // Remote clients use the keyboard type (ANSI/ISO/JIS) to turn key codes into scan codes.
         event.setIntegerValueField(.keyboardEventKeyboardType, value: keyboardType)
         return event
@@ -495,6 +595,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         get { UserDefaults.standard.object(forKey: "replaceSymbols") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "replaceSymbols") }
     }
+    // DECISION: bold and italic by default (user request); text from chat and AI tools uses Markdown.
+    private var markdown: MarkdownMode {
+        get { MarkdownMode(rawValue: UserDefaults.standard.integer(forKey: "markdown")) ?? .format }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "markdown") }
+    }
+    private var askedToUpdateHelper = false
     // DECISION: on by default (user request): Shift+Return makes a new line in chat apps and word
     // processors instead of sending. Spreadsheets move up a cell, so the panel can turn it off.
     private var checkUpdates: Bool {
@@ -596,6 +702,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.method = model.method
             self.interval = self.speeds[model.speedIndex].interval
             self.replaceSymbols = model.replaceSymbols
+            self.markdown = model.markdown
             self.shiftReturn = model.shiftReturn
             if model.checkUpdates != self.checkUpdates {
                 self.checkUpdates = model.checkUpdates
@@ -617,6 +724,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.method = method
         model.speedIndex = speeds.firstIndex { abs($0.interval - interval) < 0.0001 } ?? 0
         model.replaceSymbols = replaceSymbols
+        model.markdown = markdown
         model.shiftReturn = shiftReturn
         model.checkUpdates = checkUpdates
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -962,9 +1070,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let map = shiftReturn ? Typer.shiftReturn(buildKeyMap()) : buildKeyMap()
         if shiftReturn { lastAttempt += "\nLine breaks: Shift+Return." }
         // The smart symbols test exists to show the replacements, so it always replaces.
-        let (text, replaced) = (replaceSymbols || test == .smartSymbols) && method != .unicode
+        let (replacedText, replaced) = (replaceSymbols || test == .smartSymbols) && method != .unicode
             ? typer.replacingUntypable(in: original, map: map, method: method) : (original, 0)
+        var text = replacedText
         if replaced > 0 { lastAttempt += "\nReplaced \(replaced) symbols that have no key." }
+        var formats: [Int: [TextFormat]] = [:]
+        if markdown != .keep && test == nil {
+            let parsed = Typer.markdown(text)
+            if parsed.spans > 0 {
+                text = parsed.text
+                let keys = [TextFormat.bold, .italic].allSatisfy { typer.typeable($0.rawValue, map: map, method: method == .unicode ? .hid : method) }
+                if markdown == .format && keys { formats = parsed.formats }
+                lastAttempt += "\nMarkdown: \(parsed.spans) marked spans, " + (formats.isEmpty ? "marks removed." : "typed as bold or italic.")
+            }
+        }
         let missing = typer.unsupported(in: text, map: map, method: method)
         if !missing.isEmpty {
             lastAttempt += "\nNot started: unsupported characters."
@@ -979,6 +1098,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let shortcutTarget = NSWorkspace.shared.frontmostApplication?.processIdentifier
         lastAttempt += "\nSpeed: \(Int(interval * 1000)) ms per character\nWaiting to start."
         DispatchQueue.global(qos: .userInitiated).async { [typer] in
+            var formats = formats
             let status = method == .virtualKeyboard ? VirtualKeyboard.status() : .ready
             if status != .ready {
                 DispatchQueue.main.async {
@@ -989,6 +1109,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 return
             }
+            // A helper set up before 0.6 refuses Control, so type the text without formatting.
+            let oldHelper = method == .virtualKeyboard && !formats.isEmpty && !VirtualKeyboard.supportsFormatting()
+            if oldHelper { formats = [:] }
             // Panel runs let the user explicitly focus the remote field. Shortcut runs
             // retain their original target rather than silently picking a different app.
             if fromMenu { Thread.sleep(forTimeInterval: testText == nil ? 1.0 : 3.0) }
@@ -1001,7 +1124,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 result = .cancelled(typed: 0, total: text.count, reason: "shortcut or modifier keys were not released")
             } else if let target = target, target.processIdentifier != ProcessInfo.processInfo.processIdentifier,
                       fromMenu || target.processIdentifier == shortcutTarget {
-                result = typer.type(text, map: map, interval: interval, method: method, target: target.processIdentifier)
+                result = typer.type(text, map: map, interval: interval, method: method, target: target.processIdentifier,
+                                    formats: formats)
             } else {
                 result = .cancelled(typed: 0, total: text.count, reason: "the target app was unavailable or changed before typing")
             }
@@ -1015,6 +1139,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self.alert("Typing stopped", "Stopped after sending \(typed) of \(total) characters because \(reason).")
                 } else {
                     self.lastAttempt += "\nSent events for \(text.count) characters. Remote acceptance is unverified."
+                }
+                if oldHelper {
+                    self.lastAttempt += "\nBold and italic left out: the Virtual Keyboard helper is from an older version."
+                    if !self.askedToUpdateHelper {
+                        self.askedToUpdateHelper = true
+                        self.alert("Typed without bold and italic",
+                                   "To type bold and italic with Virtual Keyboard, choose Set Up in Settings once more. It updates the helper.")
+                    }
                 }
             }
         }

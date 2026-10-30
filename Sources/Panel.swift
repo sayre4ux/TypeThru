@@ -14,6 +14,7 @@ final class PanelModel: ObservableObject {
     @Published var method = TypingMethod.virtualKeyboard
     @Published var speedIndex = 0
     @Published var replaceSymbols = true
+    @Published var markdown = MarkdownMode.format
     @Published var shiftReturn = true
     @Published var status = Status(text: "Checking…", ready: false)
     @Published var busy = false

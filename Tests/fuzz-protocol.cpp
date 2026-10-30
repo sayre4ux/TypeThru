@@ -8,7 +8,7 @@ static bool expected(const uint8_t* p) {
     if (p[0] != 1 || p[1] > 1) return false;
     if (p[1] == 0) return true;
     bool usage = (p[2] >= 4 && p[2] <= 56) || p[2] == 100;
-    bool modifier = p[3] == 0 || p[3] == 2;
+    bool modifier = p[3] == 0 || p[3] == 2 || (p[3] == 1 && (p[2] == 5 || p[2] == 12));
     unsigned hold = p[4] + 256u * p[5], gap = p[6] + 256u * p[7];
     return usage && modifier && hold >= 10 && hold <= 200 && gap <= 500;
 }

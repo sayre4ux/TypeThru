@@ -34,6 +34,9 @@ struct SettingsView: View {
                     ForEach(model.speeds.indices, id: \.self) { Text(model.speeds[$0]).tag($0) }
                 }
                 Toggle("Replace symbols without a key (• → -)", isOn: binding(\.replaceSymbols))
+                Picker("Markdown (**bold**, *italic*)", selection: binding(\.markdown)) {
+                    ForEach(MarkdownMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
                 Toggle("Type line breaks as Shift+Return", isOn: binding(\.shiftReturn))
             }
 
