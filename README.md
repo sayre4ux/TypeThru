@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  Type your clipboard into VDI and remote desktops where paste does not work.<br>
+  Type your clipboard anywhere paste is blocked: VDI, remote desktops, consoles, and websites.<br>
   <a href="https://github.com/sayre4ux/TypeThru/releases"><b>Download for macOS</b></a>
 </p>
 
@@ -32,12 +32,16 @@
 - **VDI and remote desktops** where the clipboard is turned off.
 - **Virtual machine and server consoles**, before guest tools are installed or through a
   web-based KVM.
-- **Forms and apps that block paste**, such as confirm-password fields.
+- **Websites that block copy and paste**: sign-up, bank, and government forms, confirm-email
+  and password fields, and web editors that turn paste off. TypeThru types into them like you
+  would.
+- **Apps that block paste**, such as installers and login windows that only accept typing.
 - **Long codes**: license keys, recovery keys, and one-time setup codes.
 - **Demos and recordings**: natural, human-speed typing for tutorials and live coding.
 - **Accessibility**: send prepared text when typing it by hand is hard.
 
-Check your workplace's IT policy before using TypeThru on a managed computer or session.
+Check your workplace's IT policy, and a website's terms, before using TypeThru on a managed
+computer, session, or site.
 
 ## Install
 
@@ -62,6 +66,17 @@ Upgrading from KeyTyper? Delete the old app and run **Set Up** once.
 2. Click a text field in the remote session.
 3. Press **Control+\\** (or your own shortcut).
 
+The same steps work in a website or app on your Mac that blocks paste: click its field and
+press the shortcut.
+
+Tips:
+
+- **Formatted text**: `**bold**` and `*italic*` from chat and AI tools arrive as real bold and
+  italic. Choose **Type as is** in **Settings › Typing** for code, terminals, or a remote Mac.
+- **Spreadsheets**: turn off **Type line breaks as Shift+Return**, because Shift+Return moves
+  up a cell there.
+- **Slow or busy sessions**: choose a slower speed if characters go missing.
+
 Click the menu bar icon to change the speed or run a typing test. Open **Settings** there to
 change the shortcut, open TypeThru at login, or turn options off. Control alone is the safest
 shortcut, because other modifier keys also reach the remote session.
@@ -74,6 +89,8 @@ allowed.
 
 - **Nothing appears:** click the remote text field first, then try again.
 - **Characters are missing:** choose a slower speed.
+- **Stars or bold appear where you did not want them:** choose **Type as is** or **Remove the
+  marks** for **Markdown** in **Settings › Typing**.
 - **Typing does not start after an update:** turn TypeThru off and on in **Accessibility**.
 - **Set Up keeps asking:** allow the Karabiner driver in **System Settings**.
 
@@ -94,9 +111,9 @@ allowed.
   signed with the same certificate as the copy you have. Nothing is installed automatically.
 - The virtual keyboard helper runs as root because the driver requires it. It accepts key
   presses only from your Mac account and cannot read keyboard input. Besides Shift, the only
-  shortcuts it presses are Control+B and Control+I, for bold and italic. Other apps running as you
-  could also use it to send key presses, even without Accessibility permission, so uninstall
-  TypeThru when you no longer need it.
+  shortcuts it presses are Control+B and Control+I, for bold and italic. Other apps running as
+  you could also use it to send key presses, even without Accessibility permission, so
+  uninstall TypeThru when you no longer need it.
 - Setup and uninstall run as administrator only after you enter your password. First,
   TypeThru checks that its setup files are unchanged since download and that the driver is
   signed by its own developer. Setup never replaces a different driver version.
