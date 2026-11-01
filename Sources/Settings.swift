@@ -79,9 +79,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(GlassBackground().ignoresSafeArea())
         .frame(width: 460)
-        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder private func note(_ text: String?) -> some View {
@@ -94,21 +92,31 @@ struct SettingsView: View {
 }
 
 /// Liquid Glass on macOS 26 and later, with the panel's tint; a blurred material before that.
-private struct GlassBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        if #available(macOS 26, *) {
-            let glass = TintedGlass()
-            glass.tintColor = Brand.glassTint
-            return glass
-        }
+/// The window's whole background, title bar included, with `content` below the title bar.
+/// DECISION: glass as the window's content view rather than a SwiftUI background, which left the
+/// title bar fully transparent; macOS passes clicks on fully transparent parts of a window through
+/// to the window behind, close button included.
+private func glass(around content: NSView, size: NSSize, titleBar: CGFloat) -> NSView {
+    let container = NSView(frame: NSRect(origin: .zero, size: size))
+    let background: NSView
+    if #available(macOS 26, *) {
+        let glass = TintedGlass()
+        glass.tintColor = Brand.glassTint
+        background = glass
+    } else {
         let material = NSVisualEffectView()
         material.material = .hudWindow
         material.blendingMode = .behindWindow
         material.state = .active
-        return material
+        background = material
     }
-
-    func updateNSView(_ view: NSView, context: Context) {}
+    background.frame = container.bounds
+    content.frame = NSRect(x: 0, y: 0, width: size.width, height: size.height - titleBar)
+    for view in [background, content] {
+        view.autoresizingMask = [.width, .height]
+        container.addSubview(view)
+    }
+    return container
 }
 
 /// Resolves the tint again when the system switches between light and dark mode.
@@ -126,9 +134,18 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     func show(model: PanelModel) {
         if window == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
+            // The full height of the form, measured once; on a small screen the window is shorter and the form scrolls.
+            let content = NSHostingView(rootView: SettingsView(model: model).fixedSize(horizontal: false, vertical: true)).fittingSize
+            let host = NSHostingView(rootView: SettingsView(model: model))
+            host.sizingOptions = []
+            let visible = (NSScreen.main ?? NSScreen.screens[0]).visibleFrame
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: content),
+                                  styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+            let titleBar = window.frame.height - window.contentLayoutRect.height
+            let size = NSSize(width: content.width, height: min(content.height + titleBar, visible.height - 40))
+            window.setContentSize(size)
+            window.contentView = glass(around: host, size: size, titleBar: titleBar)
             window.title = "TypeThru Settings"
-            window.styleMask = [.titled, .closable, .fullSizeContentView]
             window.titlebarAppearsTransparent = true
             // The window is clear, so the glass behind the form shows the desktop like the panel.
             window.isOpaque = false
