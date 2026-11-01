@@ -5,94 +5,153 @@
   </picture>
 </p>
 
+<h3 align="center">Paste blocked? Type it through.</h3>
+
 <p align="center">
-  Type your clipboard anywhere paste is blocked: VDI, remote desktops, consoles, and websites.<br>
+  TypeThru types your clipboard as real key presses into VDI, remote desktops, consoles, and
+  websites that block paste. And it copies text back off any screen with one shortcut.
+</p>
+
+<p align="center">
+  <a href="https://github.com/sayre4ux/TypeThru/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/sayre4ux/TypeThru?include_prereleases&label=download&color=4f7cff"></a>
+  <img alt="macOS 13 or later" src="https://img.shields.io/badge/macOS-13%2B-222">
+  <img alt="Apple silicon and Intel" src="https://img.shields.io/badge/Apple%20silicon%20%2B%20Intel-universal-222">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-222"></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/sayre4ux/TypeThru/releases"><b>Download for macOS</b></a>
 </p>
 
 <p align="center">
-  <img src="docs/panel.png" width="320" alt="The TypeThru panel">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/panel-dark.png">
+    <img src="docs/panel-light.png" width="320" alt="The TypeThru panel: Type Clipboard, Copy Text from Screen, speed, and typing tests">
+  </picture>
 </p>
+
+## Two shortcuts, both directions
+
+| | Shortcut | What happens |
+|---|---|---|
+| **Type Clipboard** | **Control+\\** | Copy text on your Mac, click a field anywhere, press the shortcut. TypeThru types it in, key by key. |
+| **Copy Text from Screen** | **Control+]** | Drag over any text you can see, even in a remote session, a picture, or a locked-down page. The text lands on your clipboard. |
+
+## Why TypeThru
+
+- **It types, it does not paste.** Remote sessions and web pages that block the clipboard still
+  accept a keyboard. TypeThru is that keyboard: a virtual USB keyboard that sends real key
+  presses, so even strict VDI clients take them.
+- **It gets the details right.** Capitals, symbols, smart quotes, dashes, line breaks, bold and
+  italic all arrive as you meant them, at a speed the remote side can keep up with.
+- **It stays out of your way.** One shortcut, no window to manage, and it stops the moment you
+  press Esc, click, or switch apps.
+- **It is private by design.** No keylogging, no cloud. Screen text is read on your Mac, and
+  nothing is saved. It is open source, so you can check.
 
 ## Features
 
-- **Real key presses** through a virtual keyboard, so remote sessions accept them.
+**Typing in**
+
+- **Real key presses** through a virtual keyboard driver that remote sessions accept.
 - **Five speeds**, from an average typist to an unrealistic 600 words per minute.
-- **Smart symbols**: bullets, curly quotes, and dashes are typed as plain keys.
-- **Bold and italic**: Markdown such as `**bold**` and `*italic*` from chat and AI tools is
-  typed as real bold and italic (Control+B and Control+I), or with the marks removed.
-- **New lines, not sends**: line breaks are typed as Shift+Return, and a line break at the
-  end is left out, so a copied command never runs by itself.
+- **Smart symbols**: bullets, curly quotes, and dashes are typed as plain keys that exist on
+  every keyboard.
+- **Bold and italic**: Markdown such as `**bold**` and `*italic*` from chat and AI tools
+  arrives as real bold and italic in Word, Outlook, and web editors.
+- **New lines, not sends**: line breaks are typed as Shift+Return, so chat apps do not send
+  half a message. A line break at the end is left out, so a copied command never runs by itself.
 - **Stops instantly** when you press Esc, click, or switch apps.
+
+**Copying out**
+
+- **Copy Text from Screen**: select an area, or press Space to pick a window. Apple's on-device
+  text recognition reads it, in many languages, and keeps paragraphs and table columns.
+- **Nothing leaves your Mac**: the picture is deleted as soon as it is read.
+
+**Everyday**
+
+- **Light and dark**: the panel and Settings follow your Mac's appearance.
 - **Your shortcut**: Control+\\ by default, or choose your own.
+- **Updates in one click**: TypeThru checks each new version's signature, installs it, and
+  keeps its permissions.
 - **Lightweight**: about 6 MB, under 50 MB of memory, and no CPU while idle.
 
 ## Use cases
 
-- **VDI and remote desktops** where the clipboard is turned off.
-- **Virtual machine and server consoles**, before guest tools are installed or through a
-  web-based KVM.
+- **VDI and remote desktops** where the clipboard is turned off, in either direction.
 - **Websites that block copy and paste**: sign-up, bank, and government forms, confirm-email
   and password fields, and web editors that turn paste off. TypeThru types into them like you
   would.
+- **Text you can see but not select**: error dialogs, scanned documents, videos, slides,
+  images, and pages that block selecting.
+- **Virtual machine and server consoles**, before guest tools are installed or through a
+  web-based KVM.
 - **Apps that block paste**, such as installers and login windows that only accept typing.
-- **Long codes**: license keys, recovery keys, and one-time setup codes.
+- **Long codes**: license keys, recovery keys, and one-time setup codes, typed without a typo.
 - **Demos and recordings**: natural, human-speed typing for tutorials and live coding.
 - **Accessibility**: send prepared text when typing it by hand is hard.
 
-Check your workplace's IT policy, and a website's terms, before using TypeThru on a managed
-computer, session, or site.
+TypeThru is a tool, and you decide how to use it. Follow the rules of the computers,
+sessions, and websites you use it with, including your workplace's IT policy and a site's terms.
 
 ## Install
 
-Requires macOS 13 or later.
+Requires macOS 13 or later, on Apple silicon or Intel.
 
 1. Download the `.dmg` from [Releases](https://github.com/sayre4ux/TypeThru/releases).
 2. Drag **TypeThru** into **Applications**, then open it.
 3. If macOS says it cannot verify TypeThru, go to **System Settings › Privacy & Security**
-   and choose **Open Anyway**.
-4. Allow TypeThru in **Accessibility** when asked.
+   and choose **Open Anyway**. This is needed once.
+4. Allow TypeThru in **Accessibility** when asked, and choose whether it opens at login.
 5. Choose **Set Up** and enter your password. This installs the virtual keyboard driver,
    which is included in the app.
 6. If macOS asks, allow the Karabiner driver in **System Settings**.
 
-No Terminal is needed; everything happens in the app and System Settings.
+No Terminal is needed; everything happens in the app and System Settings. Later versions
+install from the panel with one click.
 
-Upgrading from KeyTyper? Delete the old app and run **Set Up** once.
+Upgrading to a version with bold and italic? Choose **Set Up** once more to update the helper.
 
 ## Use
 
+**Type text in**
+
 1. Copy text on your Mac.
-2. Click a text field in the remote session.
+2. Click a text field: in a remote session, a website, or any app.
 3. Press **Control+\\** (or your own shortcut).
 
-The same steps work in a website or app on your Mac that blocks paste: click its field and
-press the shortcut.
+**Copy text out**
 
-Tips:
+1. Press **Control+]**, or choose **Copy Text from Screen** in the panel.
+2. Drag over the text, or press Space and click a window. Esc cancels.
+3. Paste it anywhere. The first time, macOS asks to allow **Screen Recording** for TypeThru.
 
-- **Formatted text**: `**bold**` and `*italic*` from chat and AI tools arrive as real bold and
-  italic. Choose **Type as is** in **Settings › Typing** for code, terminals, or a remote Mac.
+Click the menu bar icon to change the speed or run a typing test. Open **Settings** there to
+change the shortcut, open TypeThru at login, or turn features off. Control alone is the safest
+shortcut, because other modifier keys also reach the remote session.
+
+**Tips**
+
+- **Formatted text**: choose **Type as is** for **Markdown** in **Settings › Typing** when you
+  type code, into a terminal, or into a remote Mac.
 - **Spreadsheets**: turn off **Type line breaks as Shift+Return**, because Shift+Return moves
   up a cell there.
 - **Slow or busy sessions**: choose a slower speed if characters go missing.
-
-Click the menu bar icon to change the speed or run a typing test. Open **Settings** there to
-change the shortcut, open TypeThru at login, or turn options off. Control alone is the safest
-shortcut, because other modifier keys also reach the remote session.
-
-When a new version is out, the panel shows it with an **Install** button. TypeThru downloads
-it, checks that it is signed by TypeThru, replaces itself, and reopens. Accessibility stays
-allowed.
+- **Small text**: zoom in before copying from the screen; larger text reads more accurately.
 
 ## Troubleshooting
 
-- **Nothing appears:** click the remote text field first, then try again.
+- **Nothing appears:** click the text field first, then try again.
 - **Characters are missing:** choose a slower speed.
 - **Stars or bold appear where you did not want them:** choose **Type as is** or **Remove the
   marks** for **Markdown** in **Settings › Typing**.
+- **Copy Text from Screen does nothing:** allow TypeThru in **System Settings › Privacy &
+  Security › Screen & System Audio Recording**, then quit and reopen it.
 - **Typing does not start after an update:** turn TypeThru off and on in **Accessibility**.
 - **Set Up keeps asking:** allow the Karabiner driver in **System Settings**.
+
+**Diagnostics** in Settings shows what happened on the last run, without any of your text.
 
 ## Privacy
 
@@ -102,7 +161,11 @@ allowed.
   front.
 - When you change the shortcut, Settings reads only the keys you press in it, until you
   choose one.
-- The clipboard is read only when you ask it to type, and is never saved or logged.
+- The clipboard is read only when you ask TypeThru to type, and written only when you copy
+  text from the screen. Its contents are never saved or logged.
+- The screen is captured only when you choose **Copy Text from Screen**, and only the area you
+  select. The picture is read on your Mac by Apple's text recognition and deleted right away;
+  only the text is kept, on your clipboard. Turn the feature off in **Settings**.
 - The only network access is checking GitHub for a new version, at most once a day. The
   request contains only the app name and version; GitHub sees your IP address, as with any
   website. Turn it off in **Settings › Updates**.
@@ -131,7 +194,7 @@ make test && make build
 ```
 
 Needs the Xcode Command Line Tools. See [AGENTS.md](AGENTS.md) for how it works, signing,
-and project rules.
+and project rules. Issues and pull requests are welcome.
 
 ## License
 

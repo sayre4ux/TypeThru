@@ -40,6 +40,12 @@ struct SettingsView: View {
                 Toggle("Type line breaks as Shift+Return", isOn: binding(\.shiftReturn))
             }
 
+            Section("Copy Text from Screen") {
+                Toggle("Copy text from the screen with \(model.copyShortcut)", isOn: binding(\.copyFromScreen))
+                Text("Select an area, or press Space to pick a window. Its text is read on this Mac and copied, and the picture is deleted at once. macOS asks once for Screen Recording permission.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+
             Section("Virtual Keyboard") {
                 LabeledContent("Status", value: model.status.text)
                 HStack {

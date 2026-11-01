@@ -3,7 +3,7 @@
 Guidance for AI coding agents working on TypeThru. Read this before changing code.
 
 TypeThru is a macOS menu bar app that types the clipboard as key presses into VDI and remote
-desktop sessions where paste does not work. It is small (six Swift files, one C++ helper,
+desktop sessions where paste does not work. It is small (seven Swift files, one C++ helper,
 a few shell scripts) and has no package manager or Xcode project; a `Makefile` runs everything.
 
 ## Layout
@@ -13,6 +13,7 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 | `Makefile` | Entry point: `make build`, `test`, `package`, `icon`, `audit`, `check`, `hooks`, `cert`, `update-key` |
 | `Sources/main.swift` | App: key map from the active layout, Quartz typing methods, typing tests, global hotkey, onboarding, diagnostics |
 | `Sources/Panel.swift` | Menu bar panel (SwiftUI, Liquid Glass on macOS 26+, light or dark with the system). A non-activating panel, so the target app stays in front |
+| `Sources/ScreenText.swift` | Copy Text from Screen: area selection with `screencapture -i`, Vision text recognition, rows back in reading order, clipboard write |
 | `Sources/Settings.swift` | Settings window (SwiftUI form) for rarely changed options; shares the panel's model |
 | `Sources/Updates.swift` | Daily check of the GitHub releases API; on Install, downloads, verifies, and replaces the app |
 | `Sources/UpdateKey.swift` | Public key for update signatures, written by `make update-key` |
@@ -33,7 +34,7 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 | `scripts/make-cert.sh` | Once per release signer: the self-signed "TypeThru Release" certificate (`make cert`) |
 | `scripts/update-key.swift` | Creates the update signing key (`make update-key`) and signs disk images for `package.sh` |
 | `Resources/AppIcon.icns` | App icon, copied into the app by `build.sh` |
-| `docs/` | README images: logos and a panel screenshot. Update them when the icon or panel changes |
+| `docs/` | README images: logos and light and dark panel screenshots. Update them when the icon or panel changes |
 | `.githooks/pre-push` | Runs `scripts/check.sh` before every push (enable with `make hooks`) |
 | `.github/workflows/` | CI (`make check` on macOS 26) and CodeQL code scanning (Swift and C++) |
 
@@ -75,8 +76,9 @@ It must pass; `git push --no-verify` is only for emergencies. It runs:
    - commits to push use GitHub noreply emails
    - no build output, DMGs, DEVLOG, or `.DS_Store` tracked; nothing tracked is also ignored;
      no tracked file over 2 MB; no `rm -rf` in scripts
-   - privacy contract: no event taps, logging, or clipboard writes; network only in
-     `Updates.swift`; privacy-related code changes need a README Privacy update in the same push
+   - privacy contract: no event taps or logging; clipboard writes and screen capture only in
+     `ScreenText.swift`; network only in `Updates.swift`; privacy-related code changes need a
+     README Privacy update in the same push
    - no VDI vendor names in the app or README
    - the built app's signature and setup fingerprints; the installed helper's owner and modes
 
@@ -131,6 +133,13 @@ format) lose their marks and become Control+I/Control+B toggles; underscores are
 because code uses them. The whole text is
 checked against the layout before anything is sent; unsupported characters abort the run.
 
+**Copy Text from Screen** (Control+], `copyShortcut`, hotkey id 2, setting `copyFromScreen`)
+runs `/usr/sbin/screencapture -i` into a fresh private temporary folder, recognizes the text
+with Vision (`.accurate`, language correction on, 2× enlarged when the picture is 72 dpi), puts
+rows back in order (`ScreenText.layout`: blank lines at paragraph gaps, tabs between columns),
+writes only the text to the clipboard, and deletes the folder. It needs Screen Recording
+permission; macOS asks once (`CGRequestScreenCaptureAccess`), then the app points to Settings.
+
 **Quartz methods** build a `CGEvent` pair per character (with explicit Shift
 `flagsChanged` events when needed) and post them to the HID tap, the session tap, or the
 target pid. Unicode mode sets the UTF-16 string on a keycode-0 event instead. All
@@ -183,7 +192,8 @@ apps (such as Karabiner-Elements) may depend on it.
 - **The README's "Privacy" section is a contract.** No event taps, no Input Monitoring, no
   network access at runtime except the update check (GitHub releases API, at most daily, can
   be turned off; downloads and installs an update only when the user chooses Install), no clipboard persistence or logging, and a
-  helper that can only send keys. If a change would break any of these, stop and ask. If a
+  helper that can only send keys. The screen is captured only by Copy Text from Screen, only
+  the area the user selects, read on the Mac and deleted at once; only its text is kept. If a change would break any of these, stop and ask. If a
   change alters what the app can see or do, update that section in the same change. Avoid
   wording in code and docs that suggests capturing or recording input.
 - **Diagnostics never record clipboard contents.** Counts and reasons only.
@@ -221,7 +231,8 @@ The README keeps user steps short; put detail for contributors here.
 Agents can verify: `make check` (and its parts), `--print-map`, `--check-protocol`, and
 `VirtualKeyboard.status()` via the readiness probe.
 
-Only the user can verify: real typing into a remote session, setup and uninstall, system
+Only the user can verify: real typing into a remote session, Copy Text from Screen (Screen
+Recording permission and the selection), setup and uninstall, system
 extension approval, the first-run onboarding (including the launch-at-login question), in-app
 update installs, `make cert` (it asks for the password), and installing from the disk image (Gatekeeper's
 Open Anyway, the move-to-Applications check). When a change affects

@@ -527,28 +527,52 @@ struct Shortcut: Equatable {
 
 var currentShortcut = Shortcut.standard
 var onHotKey: (() -> Void)?
+var onCopyHotKey: (() -> Void)?
 var hotKeyRef: EventHotKeyRef?
+var copyHotKeyRef: EventHotKeyRef?
 var hotKeyHandlerInstalled = false
 var hotKeyRegistrationStatus: OSStatus = OSStatus(eventNotHandledErr)
 var lastHotKeyReceived: Date?
 
+// DECISION: Control+] for Copy Text from Screen, next to the typing shortcut. Windows apps
+// rarely use Ctrl+], and as with Control+\ only Control reaches the remote session.
+let copyShortcut = Shortcut(keyCode: UInt32(kVK_ANSI_RightBracket), modifiers: UInt32(controlKey))
+
+private func installHotKeyHandler() -> OSStatus {
+    guard !hotKeyHandlerInstalled else { return noErr }
+    // Start on release, so the remote client has a chance to receive the physical key-up
+    // sequence before the virtual keyboard begins a new sequence.
+    var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
+    let status = InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
+        var id = EventHotKeyID()
+        GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
+                          MemoryLayout<EventHotKeyID>.size, nil, &id)
+        if id.id == 2 { onCopyHotKey?(); return noErr }
+        lastHotKeyReceived = Date()
+        onHotKey?()
+        return noErr
+    }, 1, &spec, nil, nil)
+    hotKeyHandlerInstalled = status == noErr
+    return status
+}
+
+/// Turns the Copy Text from Screen shortcut on or off. Returns false if macOS refuses it.
+func setCopyHotKey(_ on: Bool) -> Bool {
+    if let ref = copyHotKeyRef { UnregisterEventHotKey(ref) }
+    copyHotKeyRef = nil
+    guard on else { return true }
+    guard installHotKeyHandler() == noErr else { return false }
+    let id = EventHotKeyID(signature: OSType(0x4B545950), id: 2)
+    return RegisterEventHotKey(copyShortcut.keyCode, copyShortcut.modifiers, id, GetApplicationEventTarget(), 0, &copyHotKeyRef) == noErr
+}
+
 /// Registers `shortcut` as the global hotkey, replacing the current one. Returns false if
 /// macOS refuses it; then nothing is registered.
 func registerHotKey(_ shortcut: Shortcut) -> Bool {
-    if !hotKeyHandlerInstalled {
-        // Start on release, so the remote client has a chance to receive the physical key-up
-        // sequence before the virtual keyboard begins a new sequence.
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
-        let handlerStatus = InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
-            lastHotKeyReceived = Date()
-            onHotKey?()
-            return noErr
-        }, 1, &spec, nil, nil)
-        guard handlerStatus == noErr else {
-            hotKeyRegistrationStatus = handlerStatus
-            return false
-        }
-        hotKeyHandlerInstalled = true
+    let handlerStatus = installHotKeyHandler()
+    guard handlerStatus == noErr else {
+        hotKeyRegistrationStatus = handlerStatus
+        return false
     }
     unregisterHotKey()
     let id = EventHotKeyID(signature: OSType(0x4B545950), id: 1) // "KTYP"
@@ -601,6 +625,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "markdown") }
     }
     private var askedToUpdateHelper = false
+    private var copyFromScreen: Bool {
+        get { UserDefaults.standard.object(forKey: "copyFromScreen") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "copyFromScreen") }
+    }
+    private var copyHotKeyOn = false
+    private var copying = false
+    private var lastCopy = "No text copied from the screen in this session."
     // DECISION: on by default (user request): Shift+Return makes a new line in chat apps and word
     // processors instead of sending. Spreadsheets move up a cell, so the panel can turn it off.
     private var checkUpdates: Bool {
@@ -622,10 +653,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         migrateFromKeyTyper()
 
         onHotKey = { [weak self] in self?.trigger(fromMenu: false) }
+        onCopyHotKey = { [weak self] in self?.copyTextFromScreen() }
         let shortcut = Shortcut.load()
         if !registerHotKey(shortcut) {
             alert("Could not use \(shortcut.title)", "macOS returned error \(hotKeyRegistrationStatus). Another app may use this shortcut. Choose a different one in TypeThru Settings.")
         }
+        copyHotKeyOn = copyFromScreen && setCopyHotKey(true)
         if !AXIsProcessTrusted() { promptForAccessibility() }
         continueOnboarding()
         scheduleUpdateChecks()
@@ -703,6 +736,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.interval = self.speeds[model.speedIndex].interval
             self.replaceSymbols = model.replaceSymbols
             self.markdown = model.markdown
+            if model.copyFromScreen != self.copyFromScreen {
+                self.copyFromScreen = model.copyFromScreen
+                self.copyHotKeyOn = model.copyFromScreen && setCopyHotKey(true)
+                if !model.copyFromScreen { _ = setCopyHotKey(false) }
+            }
             self.shiftReturn = model.shiftReturn
             if model.checkUpdates != self.checkUpdates {
                 self.checkUpdates = model.checkUpdates
@@ -725,6 +763,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.speedIndex = speeds.firstIndex { abs($0.interval - interval) < 0.0001 } ?? 0
         model.replaceSymbols = replaceSymbols
         model.markdown = markdown
+        model.copyFromScreen = copyFromScreen
+        model.copyShortcut = copyShortcut.title
         model.shiftReturn = shiftReturn
         model.checkUpdates = checkUpdates
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -884,6 +924,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if Int(event.keyCode) == kVK_Escape && held.isEmpty { finishRecording(nil); return }
         let shortcut = Shortcut(keyCode: event.keyCode, flags: held)
         if let problem = shortcut.problem { panel.model.shortcutNote = problem; return }
+        if shortcut == copyShortcut && copyFromScreen {
+            panel.model.shortcutNote = "\(copyShortcut.title) copies text from the screen. Choose another shortcut."
+            return
+        }
         finishRecording(shortcut)
     }
 
@@ -923,6 +967,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .openUpdate: if let page = panel.model.update?.page { NSWorkspace.shared.open(page) }
         case .installUpdate: installUpdate()
         case .typeClipboard: trigger(fromMenu: true)
+        case .copyFromScreen: copyTextFromScreen()
         case .test(let test): trigger(fromMenu: true, test: test)
         case .setUp: setupVirtualKeyboard()
         case .checkVirtualKeyboard: checkVirtualKeyboard()
@@ -1031,9 +1076,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
+    /// The user selects an area; its text is recognized on this Mac and put on the clipboard.
+    private func copyTextFromScreen() {
+        guard copyFromScreen, !busy, !copying else { NSSound.beep(); return }
+        copying = true
+        ScreenText.copy { [weak self] outcome in
+            guard let self else { return }
+            self.copying = false
+            let time = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+            switch outcome {
+            case .copied(let lines, let characters):
+                self.lastCopy = "Last copy from the screen: \(time), \(lines) lines, \(characters) characters."
+                Toast.show(lines == 1 ? "Copied 1 line of text" : "Copied \(lines) lines of text", symbol: "text.viewfinder")
+            case .cancelled:
+                break
+            case .noText:
+                self.lastCopy = "Last copy from the screen: \(time), no text found."
+                Toast.show("No text found in the selection", symbol: "text.viewfinder")
+            case .needsPermission:
+                // macOS shows its own request once; after that, explain where the switch is.
+                if UserDefaults.standard.bool(forKey: "screenRecordingAsked") {
+                    self.alert("Allow Screen Recording", "To copy text from the screen, turn on TypeThru in System Settings › Privacy & Security › Screen & System Audio Recording, then quit and reopen TypeThru.")
+                    if let page = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                        NSWorkspace.shared.open(page)
+                    }
+                } else {
+                    UserDefaults.standard.set(true, forKey: "screenRecordingAsked")
+                    CGRequestScreenCaptureAccess()
+                }
+            case .failed(let reason):
+                self.lastCopy = "Last copy from the screen: \(time), failed."
+                self.alert("Could not copy text", reason)
+            }
+        }
+    }
+
     @objc private func showDiagnostics() {
         let lastShortcut = lastHotKeyReceived.map { DateFormatter.localizedString(from: $0, dateStyle: .none, timeStyle: .medium) } ?? "Never received in this session"
-        alert("TypeThru Diagnostics", "Accessibility: \(AXIsProcessTrusted() ? "granted" : "not granted")\nShortcut: \(currentShortcut.title), \(hotKeyRegistrationStatus == noErr ? "registered" : "error \(hotKeyRegistrationStatus)")\nLast shortcut received: \(lastShortcut)\nSecure Event Input: \(IsSecureEventInputEnabled() ? "enabled" : "disabled")\nSelected: \(method.title)\n\n\(lastAttempt)\n\nSent events do not confirm that the remote session accepted them. Clipboard contents are not recorded. Secure Event Input is sampled on this Mac, not inside the remote session.")
+        alert("TypeThru Diagnostics", "Accessibility: \(AXIsProcessTrusted() ? "granted" : "not granted")\nShortcut: \(currentShortcut.title), \(hotKeyRegistrationStatus == noErr ? "registered" : "error \(hotKeyRegistrationStatus)")\nLast shortcut received: \(lastShortcut)\nSecure Event Input: \(IsSecureEventInputEnabled() ? "enabled" : "disabled")\nSelected: \(method.title)\nCopy Text from Screen: \(copyFromScreen ? (copyHotKeyOn ? "\(copyShortcut.title), registered" : "\(copyShortcut.title), not registered") : "off"); Screen Recording \(CGPreflightScreenCaptureAccess() ? "allowed" : "not allowed")\n\(lastCopy)\n\n\(lastAttempt)\n\nSent events do not confirm that the remote session accepted them. Clipboard contents are not recorded. Secure Event Input is sampled on this Mac, not inside the remote session.")
     }
 
     @objc private func checkPermission() {

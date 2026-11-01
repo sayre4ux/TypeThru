@@ -195,6 +195,21 @@ section("Markdown bold and italic") {
     check(events[3].0.type == .flagsChanged && events[3].0.flags.isEmpty, "Control released last")
 }
 
+section("Copy Text from Screen: reading order") {
+    func piece(_ text: String, _ x: CGFloat, _ y: CGFloat, _ width: CGFloat = 0.3) -> ScreenText.Line {
+        ScreenText.Line(text: text, box: CGRect(x: x, y: y, width: width, height: 0.04))
+    }
+    let email = [piece("Best regards,", 0.05, 0.20), piece("Dear Chek,", 0.05, 0.90), piece("Kyle", 0.05, 0.15),
+                 piece("Noted the updated server reboot arrangements.", 0.05, 0.78, 0.8)]
+    check(ScreenText.layout(email) == "Dear Chek,\n\nNoted the updated server reboot arrangements.\n\nBest regards,\nKyle",
+          "rows top to bottom, blank line at paragraph gaps")
+    let table = [piece("srv-db-01", 0.05, 0.5, 0.15), piece("10.0.0.21", 0.55, 0.505, 0.15), piece("Reboot", 0.30, 0.497, 0.1)]
+    check(ScreenText.layout(table) == "srv-db-01\tReboot\t10.0.0.21", "one row left to right, tabs between columns")
+    check(ScreenText.layout([piece("Hello", 0.1, 0.5, 0.1), piece("world", 0.21, 0.5, 0.1)]) == "Hello world", "near pieces joined by a space")
+    check(ScreenText.layout([]) == "" && ScreenText.layout([piece("", 0.1, 0.5)]) == "", "nothing found")
+    check(copyShortcut != Shortcut.standard && copyShortcut.problem == nil, "copy shortcut is valid and differs from typing")
+}
+
 section("Custom shortcut") {
     let standard = Shortcut.standard
     check(standard.problem == nil && standard.caution == nil, "Control+Backslash is allowed without a warning")

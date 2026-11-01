@@ -4,7 +4,7 @@ import SwiftUI
 // Menu bar panel. It never activates TypeThru, so the app the user was typing into stays in front.
 
 enum PanelAction {
-    case typeClipboard, test(TypingTest), openSettings, openUpdate, installUpdate, quit
+    case typeClipboard, copyFromScreen, test(TypingTest), openSettings, openUpdate, installUpdate, quit
     case recordShortcut, resetShortcut, checkForUpdates, setUp, checkVirtualKeyboard, checkAccessibility, diagnostics, uninstall
 }
 
@@ -15,6 +15,8 @@ final class PanelModel: ObservableObject {
     @Published var speedIndex = 0
     @Published var replaceSymbols = true
     @Published var markdown = MarkdownMode.format
+    @Published var copyFromScreen = true
+    @Published var copyShortcut = ""
     @Published var shiftReturn = true
     @Published var status = Status(text: "Checking…", ready: false)
     @Published var busy = false
@@ -63,6 +65,21 @@ struct PanelView: View {
             .disabled(model.busy)
             Text("Esc, a mouse click, or switching apps stops typing.")
                 .font(.caption).foregroundStyle(.secondary)
+            if model.copyFromScreen {
+                Button { model.perform?(.copyFromScreen) } label: {
+                    HStack {
+                        Image(systemName: "text.viewfinder")
+                        Text("Copy Text from Screen")
+                        Spacer()
+                        Text(model.copyShortcut).font(.system(.body, design: .rounded)).opacity(0.75)
+                    }
+                    .padding(.vertical, 2).padding(.horizontal, 4)
+                    .frame(maxWidth: .infinity)
+                }
+                .glassButton()
+                .disabled(model.busy)
+                .help("Select an area of the screen. Its text is read on this Mac and copied.")
+            }
 
             settings
             tests
@@ -189,6 +206,42 @@ extension View {
 
     @ViewBuilder func prominentGlass() -> some View {
         if #available(macOS 26, *) { buttonStyle(.glassProminent) } else { buttonStyle(.borderedProminent) }
+    }
+}
+
+/// A short message under the menu bar. It never takes focus or clicks, and goes away by itself.
+enum Toast {
+    private static var current: NSPanel?
+
+    static func show(_ text: String, symbol: String) {
+        current?.close()
+        let host = NSHostingView(rootView: HStack(spacing: 8) {
+            Image(systemName: symbol)
+            Text(text).font(.callout.weight(.medium))
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .glassCapsule())
+        host.frame.size = host.fittingSize
+        let panel = NSPanel(contentRect: host.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isReleasedWhenClosed = false
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.level = .statusBar
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        panel.contentView = host
+        if let screen = NSScreen.main {
+            let visible = screen.visibleFrame
+            panel.setFrameOrigin(NSPoint(x: visible.midX - host.frame.width / 2, y: visible.maxY - host.frame.height - 12))
+        }
+        panel.orderFrontRegardless()
+        current = panel
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            guard current === panel else { return }
+            panel.close()
+            current = nil
+        }
     }
 }
 
