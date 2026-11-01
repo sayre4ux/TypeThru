@@ -210,6 +210,19 @@ section("Copy Text from Screen: reading order") {
     check(copyShortcut != Shortcut.standard && copyShortcut.problem == nil, "copy shortcut is valid and differs from typing")
 }
 
+section("What's New from CHANGELOG.md") {
+    let entries = Changelog.parse((try? String(contentsOfFile: "CHANGELOG.md", encoding: .utf8)) ?? "")
+    check(entries.count >= 7 && entries.allSatisfy { !$0.lines.isEmpty && $0.lines.allSatisfy { $0.hasPrefix("- ") } },
+          "every version has bullet lines, wrapped lines joined")
+    check(zip(entries, entries.dropFirst()).allSatisfy { Updates.isNewer($0.version, than: $1.version) }, "newest first, no duplicates")
+    check(Changelog.since("0.4", upTo: "0.6.1", in: entries).map(\.version) == ["0.6.1", "0.6", "0.5.1", "0.5"],
+          "0.4 to 0.6.1 shows every version in between")
+    check(Changelog.since("0.6", upTo: "0.6", in: entries).isEmpty && Changelog.since("0.6.1", upTo: "0.6", in: entries).isEmpty,
+          "nothing when not updated")
+    check(Changelog.parse("## 1.2 · today\n- **a** b\n  c\n\n## no version\n- x").map(\.lines) == [["- **a** b c"]],
+          "continuation lines join, headings without a version are skipped")
+}
+
 section("Custom shortcut") {
     let standard = Shortcut.standard
     check(standard.problem == nil && standard.caution == nil, "Control+Backslash is allowed without a warning")

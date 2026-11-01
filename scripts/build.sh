@@ -59,7 +59,7 @@ rm -f "$APP/Contents/Resources/"*.command "$APP/Contents/Resources/"*.sh "$APP/C
 cp helper/install-helper.sh helper/uninstall-helper.sh "$APP/Contents/Resources/"
 cp "$SOURCE/dist/Karabiner-DriverKit-VirtualHIDDevice-8.6.0.pkg" "$APP/Contents/Resources/"
 cp "$SOURCE/LICENSE.md" "$APP/Contents/Resources/Karabiner-LICENSE.txt"
-cp Resources/AppIcon.icns "$APP/Contents/Resources/"
+cp Resources/AppIcon.icns CHANGELOG.md "$APP/Contents/Resources/"
 # Fingerprints of the files setup runs as root. The app checks root-owned copies against them,
 # because the installed bundle is writable by the user (see VirtualKeyboard.adminCommand).
 {
@@ -87,8 +87,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleExecutable</key><string>TypeThru</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.6</string>
-  <key>CFBundleVersion</key><string>8</string>
+  <key>CFBundleShortVersionString</key><string>0.6.1</string>
+  <key>CFBundleVersion</key><string>9</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
 </dict>

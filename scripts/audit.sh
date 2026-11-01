@@ -57,6 +57,10 @@ untracked=$(git ls-files --others --exclude-standard)
 removals=$(grep -n -E '^[^#]*rm -[a-zA-Z]*r[a-zA-Z]*f' scripts/*.sh helper/*.sh .githooks/pre-push | grep -v '^scripts/audit.sh:' || true)
 [ -z "$removals" ] && ok "no rm -rf in scripts" || fail "rm -rf in scripts (delete specific files instead): $removals"
 
+# Release notes: the app shows CHANGELOG.md after an update, so the version being built needs an entry.
+version=$(sed -n 's|.*<key>CFBundleShortVersionString</key><string>\([^<]*\)</string>.*|\1|p' scripts/build.sh)
+grep -q "^## $version " CHANGELOG.md && ok "CHANGELOG.md has notes for $version" || fail "CHANGELOG.md has no '## $version ·' entry"
+
 # 6. Privacy contract (README "Privacy"): no event taps, input monitoring, or logging; clipboard
 # writes and screen capture only in Copy Text from Screen; network only for the update check.
 taps=$(grep -n -E 'tapCreate|addGlobalMonitorForEvents|IOHIDManagerOpen|IOHIDDeviceOpen|NSLog\(|os_log|Logger\(|OSLog' Sources/*.swift || true)

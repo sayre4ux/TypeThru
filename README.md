@@ -73,8 +73,9 @@
 
 - **Light and dark**: the panel and Settings follow your Mac's appearance.
 - **Your shortcut**: Control+\\ by default, or choose your own.
-- **Updates in one click**: TypeThru checks each new version's signature, installs it, and
-  keeps its permissions.
+- **Updates in one click**: TypeThru checks each new version's signature, installs it, keeps
+  its permissions, and then shows what changed in every version since yours
+  ([CHANGELOG](CHANGELOG.md)).
 - **Lightweight**: about 6 MB, under 50 MB of memory, and no CPU while idle.
 
 ## Use cases

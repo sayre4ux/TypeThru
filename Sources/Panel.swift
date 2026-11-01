@@ -5,7 +5,7 @@ import SwiftUI
 
 enum PanelAction {
     case typeClipboard, copyFromScreen, test(TypingTest), openSettings, openUpdate, installUpdate, quit
-    case recordShortcut, resetShortcut, checkForUpdates, setUp, checkVirtualKeyboard, checkAccessibility, diagnostics, uninstall
+    case recordShortcut, resetShortcut, checkForUpdates, setUp, checkVirtualKeyboard, checkAccessibility, diagnostics, whatsNew, uninstall
 }
 
 /// State shared by the panel and the Settings window.

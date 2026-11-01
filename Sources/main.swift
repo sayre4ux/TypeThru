@@ -599,6 +599,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private let panel = PanelController()
     private let settingsWindow = SettingsWindowController()
+    private let whatsNewWindow = WhatsNewWindowController()
     private var updateTimer: Timer?
     private var shortcutRecorder: Any?
     private var panelClosedAt = Date.distantPast
@@ -662,6 +663,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !AXIsProcessTrusted() { promptForAccessibility() }
         continueOnboarding()
         scheduleUpdateChecks()
+        showWhatsNewAfterUpdate()
+    }
+
+    /// After an update, the notes of every version since the one last run here. Nothing for a new user.
+    private func showWhatsNewAfterUpdate() {
+        let defaults = UserDefaults.standard, current = Updates.currentVersion
+        let last = defaults.string(forKey: "lastRunVersion")
+        defaults.set(current, forKey: "lastRunVersion")
+        // DECISION: versions before 0.6.1 did not save it. 0.5 added the login question, so an
+        // existing user who saw it came from 0.5 or later, and anyone else from 0.4 or earlier.
+        let previous = last ?? (!defaults.bool(forKey: "virtualKeyboardOnboardingShown") ? nil
+                                : defaults.bool(forKey: "launchAtLoginAsked") ? "0.5" : "0.4")
+        guard let previous, Updates.isNewer(current, than: previous) else { return }
+        let entries = Changelog.since(previous, upTo: current, in: Changelog.bundled)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.whatsNewWindow.show(entries) }
     }
 
     /// An app opened from the disk image, or one macOS moved to a temporary copy, loses its
@@ -973,6 +989,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .checkVirtualKeyboard: checkVirtualKeyboard()
         case .checkAccessibility: checkPermission()
         case .diagnostics: showDiagnostics()
+        case .whatsNew: whatsNewWindow.show(Array(Changelog.bundled.filter { !Updates.isNewer($0.version, than: Updates.currentVersion) }.prefix(3)))
         case .uninstall: uninstall()
         case .quit: NSApp.terminate(nil)
         }

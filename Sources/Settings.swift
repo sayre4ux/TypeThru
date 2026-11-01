@@ -72,6 +72,7 @@ struct SettingsView: View {
 
             Section("Help") {
                 HStack {
+                    Button("What's New") { model.perform?(.whatsNew) }
                     Button("Diagnostics") { model.perform?(.diagnostics) }
                     Button("Check Accessibility") { model.perform?(.checkAccessibility) }
                 }
@@ -96,7 +97,7 @@ struct SettingsView: View {
 /// DECISION: glass as the window's content view rather than a SwiftUI background, which left the
 /// title bar fully transparent; macOS passes clicks on fully transparent parts of a window through
 /// to the window behind, close button included.
-private func glass(around content: NSView, size: NSSize, titleBar: CGFloat) -> NSView {
+func glassWindowContent(around content: NSView, size: NSSize, titleBar: CGFloat) -> NSView {
     let container = NSView(frame: NSRect(origin: .zero, size: size))
     let background: NSView
     if #available(macOS 26, *) {
@@ -144,7 +145,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             let titleBar = window.frame.height - window.contentLayoutRect.height
             let size = NSSize(width: content.width, height: min(content.height + titleBar, visible.height - 40))
             window.setContentSize(size)
-            window.contentView = glass(around: host, size: size, titleBar: titleBar)
+            window.contentView = glassWindowContent(around: host, size: size, titleBar: titleBar)
             window.title = "TypeThru Settings"
             window.titlebarAppearsTransparent = true
             // The window is clear, so the glass behind the form shows the desktop like the panel.

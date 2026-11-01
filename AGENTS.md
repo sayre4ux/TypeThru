@@ -3,7 +3,7 @@
 Guidance for AI coding agents working on TypeThru. Read this before changing code.
 
 TypeThru is a macOS menu bar app that types the clipboard as key presses into VDI and remote
-desktop sessions where paste does not work. It is small (seven Swift files, one C++ helper,
+desktop sessions where paste does not work. It is small (eight Swift files, one C++ helper,
 a few shell scripts) and has no package manager or Xcode project; a `Makefile` runs everything.
 
 ## Layout
@@ -14,6 +14,7 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 | `Sources/main.swift` | App: key map from the active layout, Quartz typing methods, typing tests, global hotkey, onboarding, diagnostics |
 | `Sources/Panel.swift` | Menu bar panel (SwiftUI, Liquid Glass on macOS 26+, light or dark with the system). A non-activating panel, so the target app stays in front |
 | `Sources/ScreenText.swift` | Copy Text from Screen: area selection with `screencapture -i`, Vision text recognition, rows back in reading order, clipboard write |
+| `Sources/WhatsNew.swift` | Reads the bundled `CHANGELOG.md`; after an update shows every version since the last one run (`lastRunVersion`) |
 | `Sources/Settings.swift` | Settings window (SwiftUI form) for rarely changed options; shares the panel's model |
 | `Sources/Updates.swift` | Daily check of the GitHub releases API; on Install, downloads, verifies, and replaces the app |
 | `Sources/UpdateKey.swift` | Public key for update signatures, written by `make update-key` |
@@ -33,6 +34,7 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 | `scripts/make-icon.sh`, `scripts/make-icon.swift` | Redraw `Resources/AppIcon.icns` and the README logos |
 | `scripts/make-cert.sh` | Once per release signer: the self-signed "TypeThru Release" certificate (`make cert`) |
 | `scripts/update-key.swift` | Creates the update signing key (`make update-key`) and signs disk images for `package.sh` |
+| `CHANGELOG.md` | Release notes, newest first, one `## <version> · <date>` heading each; built into the app and shown after updates |
 | `Resources/AppIcon.icns` | App icon, copied into the app by `build.sh` |
 | `docs/` | README images: logos and light and dark panel screenshots. Update them when the icon or panel changes |
 | `.githooks/pre-push` | Runs `scripts/check.sh` before every push (enable with `make hooks`) |
@@ -86,7 +88,9 @@ Also review by hand: the diff itself, and that `.gitignore` covers any new kind 
 
 ## Release checklist
 
-1. Bump `CFBundleShortVersionString` and `CFBundleVersion` in `scripts/build.sh`.
+1. Bump `CFBundleShortVersionString` and `CFBundleVersion` in `scripts/build.sh`, and add a
+   `## <version> · <date>` entry at the top of `CHANGELOG.md` (the audit refuses a version
+   without one). Users see these notes in the app after updating, so write them for users.
 2. `make check`, then `make package` with the Mac unlocked (it lets Finder lay out the disk image window;
    allow the terminal to control Finder once). It writes `TypeThru-<version>.dmg` and `.dmg.sig`; it needs
    the update key in the keychain and should sign with "TypeThru Release" (it warns on ad-hoc).
@@ -97,8 +101,8 @@ Also review by hand: the diff itself, and that `.gitignore` covers any new kind 
 4. Live attack checks in a throwaway VM (only the user runs these; they need root or send keys):
    tamper with the bundled setup files and confirm Set Up refuses; send malformed and flooding
    requests to the helper socket; fake the update answer; corrupt the saved settings.
-5. Push, then create a GitHub pre-release with the DMG and its `.sig` attached and the DMG's
-   SHA-256 in the notes. Without the `.sig`, the app offers no Install for that release.
+5. Push, then create a GitHub pre-release with the DMG and its `.sig` attached, the new
+   `CHANGELOG.md` entry as its notes, update and install steps, and the DMG's SHA-256. Without the `.sig`, the app offers no Install for that release.
 
 ## What an agent must not do
 
