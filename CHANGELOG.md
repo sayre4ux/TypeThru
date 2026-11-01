@@ -9,6 +9,8 @@ version, and the app reads this file, so keep the format.
   the window fits and its options scroll.
 - **What's New**: after an update, TypeThru shows what changed in every version since yours.
   Open it again from **Settings › Help › What's New**.
+- **Read before you update**: the update notice has a **What's New** button with the notes of
+  every version you would get.
 
 ## 0.6 · 1 November 2026
 

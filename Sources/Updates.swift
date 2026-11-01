@@ -11,6 +11,8 @@ enum Updates {
         let page: URL
         var download: URL? = nil
         var signature: URL? = nil
+        /// What changed in every release after this copy, newest first, shown before Install.
+        var notes: [Changelog.Entry] = []
     }
 
     struct Failure: LocalizedError {
@@ -73,12 +75,46 @@ enum Updates {
         .max { isNewer($1.version, than: $0.version) }
     }
 
+    /// The notes of every release after `current`, newest first, from the same answer. Only the
+    /// bullets under New, Fixes, and Security; install steps and checksums are left out.
+    static func notes(from data: Data, after current: String) -> [Changelog.Entry] {
+        guard let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        let entries = list.compactMap { item -> Changelog.Entry? in
+            guard item["draft"] as? Bool != true, let tag = item["tag_name"] as? String,
+                  let link = item["html_url"] as? String, let page = URL(string: link), isReleasePage(page),
+                  let body = item["body"] as? String else { return nil }
+            let version = numbers(tag).map(String.init).joined(separator: ".")
+            guard !version.isEmpty, isNewer(version, than: current) else { return nil }
+            let lines = summary(body)
+            // "0.7.0" reads as "0.7", as the releases are named.
+            let title = version.split(separator: ".").count > 2 && version.hasSuffix(".0") ? String(version.dropLast(2)) : version
+            return lines.isEmpty ? nil : Changelog.Entry(version: version, title: title, lines: lines)
+        }
+        return Array(entries.sorted { isNewer($0.version, than: $1.version) }.prefix(10))
+    }
+
+    static func summary(_ body: String) -> [String] {
+        var keep = true, lines: [String] = []
+        for raw in body.components(separatedBy: .newlines) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("#") {
+                let heading = line.drop { $0 == "#" }.trimmingCharacters(in: .whitespaces).lowercased()
+                keep = ["new", "what's new", "fixes", "security", "changes"].contains { heading.hasPrefix($0) }
+            } else if keep, line.hasPrefix("- ") {
+                lines.append(String(line.prefix(400)))
+            }
+        }
+        return Array(lines.prefix(20))
+    }
+
     /// Calls back on the main thread with a newer release, nil when up to date, or an error.
     static func check(completion: @escaping (Result<Release?, Error>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let result = Result { () -> Release? in
-                let newest = newest(from: try fetch(feed, limit: 1 << 20, accept: "application/vnd.github+json"))
-                return newest.flatMap { isNewer($0.version, than: currentVersion) ? $0 : nil }
+                let data = try fetch(feed, limit: 1 << 20, accept: "application/vnd.github+json")
+                guard var release = newest(from: data), isNewer(release.version, than: currentVersion) else { return nil }
+                release.notes = notes(from: data, after: currentVersion)
+                return release
             }
             DispatchQueue.main.async { completion(result) }
         }

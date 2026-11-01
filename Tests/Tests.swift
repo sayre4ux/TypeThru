@@ -223,6 +223,27 @@ section("What's New from CHANGELOG.md") {
           "continuation lines join, headings without a version are skipped")
 }
 
+section("Release notes before installing") {
+    let body = "Intro line.\n\n## New\n- **Copy Text** from screen\n- Bold\n\n## Fixes\n- No surprise commands\n\n## Install\n1. Download\n- not a change\n\nSHA-256: `abc`"
+    check(Updates.summary(body) == ["- **Copy Text** from screen", "- Bold", "- No surprise commands"], "only New and Fixes bullets")
+    check(Updates.summary(String(repeating: "- x\n", count: 50)).count == 20 && Updates.summary("- " + String(repeating: "y", count: 900))[0].count == 400,
+          "at most 20 lines of 400 characters")
+    func item(_ tag: String, _ body: String, page: String? = nil, draft: Bool = false) -> [String: Any] {
+        ["tag_name": tag, "draft": draft, "body": body, "html_url": page ?? "https://github.com/sayre4ux/TypeThru/releases/tag/\(tag)"]
+    }
+    let list = [item("v0.7.0-beta", "## New\n- Seven"), item("v0.6.1-beta", "## Fixes\n- Settings closes"),
+                item("v0.6.0-beta", "## New\n- Six"), item("v0.8.0-beta", "## New\n- Draft", draft: true),
+                item("v0.9", "## New\n- Elsewhere", page: "https://example.com/sayre4ux/TypeThru/releases/tag/v0.9"),
+                item("v0.6.2", "## Install\n- only steps")]
+    let data = try! JSONSerialization.data(withJSONObject: list)
+    let notes = Updates.notes(from: data, after: "0.6")
+    check(notes.map(\.title) == ["0.7", "0.6.1"] && notes[0].lines == ["- Seven"],
+          "newer releases only, newest first; drafts, other sites, and empty notes left out")
+    check(Updates.notes(from: Data("not json".utf8), after: "0.6").isEmpty, "bad answer gives no notes")
+    let linked = WhatsNewView.styled("See [this](https://example.com) and **bold**")
+    check(linked.runs.allSatisfy { $0.link == nil } && String(linked.characters) == "See this and bold", "links removed, text kept")
+}
+
 section("Custom shortcut") {
     let standard = Shortcut.standard
     check(standard.problem == nil && standard.caution == nil, "Control+Backslash is allowed without a warning")

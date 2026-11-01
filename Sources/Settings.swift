@@ -63,6 +63,7 @@ struct SettingsView: View {
                     Text(model.updateStatus).foregroundStyle(.secondary)
                     Spacer()
                     if model.update != nil {
+                        Button("What's New") { model.perform?(.updateNotes) }.disabled(model.installing)
                         Button(model.installing ? "Installing…" : "Install") { model.perform?(.installUpdate) }
                             .prominentGlass().tint(Brand.accent).disabled(model.installing)
                     }

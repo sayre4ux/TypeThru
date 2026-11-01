@@ -79,10 +79,17 @@ struct WhatsNewView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Markdown bold, italic, and code. DECISION: no links; notes before an update come from the internet.
+    static func styled(_ text: String) -> AttributedString {
+        var styled = (try? AttributedString(markdown: text)) ?? AttributedString(text)
+        for run in styled.runs where run.link != nil { styled[run.range].link = nil }
+        return styled
+    }
+
     @ViewBuilder private func row(_ line: String) -> some View {
         let bullet = line.hasPrefix("- ")
         let text = bullet ? String(line.dropFirst(2)) : line
-        let styled = (try? AttributedString(markdown: text)) ?? AttributedString(text)
+        let styled = Self.styled(text)
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             if bullet { Text("•").foregroundStyle(Brand.accent) }
             Text(styled).fixedSize(horizontal: false, vertical: true)
@@ -94,7 +101,7 @@ struct WhatsNewView: View {
 final class WhatsNewWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
 
-    func show(_ entries: [Changelog.Entry]) {
+    func show(_ entries: [Changelog.Entry], title: String? = nil) {
         guard !entries.isEmpty else { return }
         window?.close()
         let close = { [weak self] in self?.window?.close() }
@@ -109,7 +116,7 @@ final class WhatsNewWindowController: NSObject, NSWindowDelegate {
         let size = NSSize(width: content.width, height: min(content.height + titleBar, visible.height * 0.75))
         window.setContentSize(size)
         window.contentView = glassWindowContent(around: host, size: size, titleBar: titleBar)
-        window.title = entries.count == 1 ? "What's New in TypeThru" : "What's New Since Your Last Version"
+        window.title = title ?? (entries.count == 1 ? "What's New in TypeThru" : "What's New Since Your Last Version")
         window.titlebarAppearsTransparent = true
         window.isOpaque = false
         window.backgroundColor = .clear

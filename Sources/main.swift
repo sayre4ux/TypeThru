@@ -989,6 +989,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .checkVirtualKeyboard: checkVirtualKeyboard()
         case .checkAccessibility: checkPermission()
         case .diagnostics: showDiagnostics()
+        case .updateNotes:
+            guard let update = panel.model.update else { break }
+            // A release remembered from an earlier check has no notes yet; GitHub's page has them.
+            if update.notes.isEmpty { NSWorkspace.shared.open(update.page) }
+            else { whatsNewWindow.show(update.notes, title: "What's New in TypeThru \(update.version)") }
         case .whatsNew: whatsNewWindow.show(Array(Changelog.bundled.filter { !Updates.isNewer($0.version, than: Updates.currentVersion) }.prefix(3)))
         case .uninstall: uninstall()
         case .quit: NSApp.terminate(nil)

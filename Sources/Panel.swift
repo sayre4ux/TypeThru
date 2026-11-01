@@ -5,7 +5,7 @@ import SwiftUI
 
 enum PanelAction {
     case typeClipboard, copyFromScreen, test(TypingTest), openSettings, openUpdate, installUpdate, quit
-    case recordShortcut, resetShortcut, checkForUpdates, setUp, checkVirtualKeyboard, checkAccessibility, diagnostics, whatsNew, uninstall
+    case recordShortcut, resetShortcut, checkForUpdates, setUp, checkVirtualKeyboard, checkAccessibility, diagnostics, whatsNew, updateNotes, uninstall
 }
 
 /// State shared by the panel and the Settings window.
@@ -110,9 +110,15 @@ struct PanelView: View {
         HStack(spacing: 10) {
             Image(systemName: "arrow.down.circle.fill").foregroundStyle(Brand.accent).font(.title3)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Update available").font(.callout.weight(.semibold))
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Update available").font(.callout.weight(.semibold))
+                    if !model.installing {
+                        Button("What's New") { model.perform?(.updateNotes) }
+                            .buttonStyle(.plain).font(.caption.weight(.medium)).foregroundStyle(Brand.accent)
+                    }
+                }
                 Text(model.installing ? model.updateStatus : "Version \(update.version) · you have \(Updates.currentVersion)")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
             Button(model.installing ? "Installing…" : "Install") { model.perform?(.installUpdate) }

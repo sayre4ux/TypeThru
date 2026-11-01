@@ -102,7 +102,10 @@ Also review by hand: the diff itself, and that `.gitignore` covers any new kind 
    tamper with the bundled setup files and confirm Set Up refuses; send malformed and flooding
    requests to the helper socket; fake the update answer; corrupt the saved settings.
 5. Push, then create a GitHub pre-release with the DMG and its `.sig` attached, the new
-   `CHANGELOG.md` entry as its notes, update and install steps, and the DMG's SHA-256. Without the `.sig`, the app offers no Install for that release.
+   `CHANGELOG.md` entry as its notes, update and install steps, and the DMG's SHA-256. Put the
+   changes as `- ` bullets under `## New`, `## Fixes`, or `## Security`: apps from 0.6.1 on show
+   those bullets (and only those, without links) before Install. End with a link to
+   `CHANGELOG.md` for people coming from older versions. Without the `.sig`, the app offers no Install for that release.
 
 ## What an agent must not do
 
