@@ -1,0 +1,27 @@
+{
+  "_about": "Text cases both apps must pass identically. Read by Tests/Tests.swift (macOS) and windows/TypeThru.Tests (Windows). Positions count user-perceived characters.",
+  "markdown": [
+    { "input": "Could you get the **BU approval** for it?", "text": "Could you get the BU approval for it?", "formats": { "18": ["bold"], "29": ["bold"] } },
+    { "input": "confirm whether **”After remediation”** means", "text": "confirm whether ”After remediation” means", "formats": { "16": ["bold"], "35": ["bold"] } },
+    { "input": "an *italic* word", "text": "an italic word", "formats": { "3": ["italic"], "9": ["italic"] } },
+    { "input": "***both***", "text": "both", "formats": { "0": ["bold", "italic"], "4": ["bold", "italic"] } },
+    { "input": "**bold *and italic* text**", "text": "bold and italic text", "formats": { "0": ["bold"], "5": ["italic"], "15": ["italic"], "20": ["bold"] } },
+    { "input": "**a** **b**", "text": "a b", "formats": { "0": ["bold"], "1": ["bold"], "2": ["bold"], "3": ["bold"] } }
+  ],
+  "markdownUnchanged": [
+    "2**8 = 256", "5 * 3 * 2", "rm *.txt *.md", "def f(*args, **kwargs):", "/* note */", "a*b*c",
+    "__init__ and snake_case_name", "** not bold **", "**open\nclose**", "*", "**", "", "***"
+  ],
+  "trailingLineBreaks": [
+    { "input": "ls -la\r\n\n", "output": "ls -la" },
+    { "input": "a\nb", "output": "a\nb" },
+    { "input": "\n\u2029", "output": "" },
+    { "input": "no break", "output": "no break" }
+  ],
+  "replacements": [
+    { "input": "• Bullet – en — em “double” ‘single’ … 3×4÷2 → ≤ ≥ ≠ © ® ™",
+      "output": "- Bullet - en -- em \"double\" 'single' ... 3x4/2 -> <= >= != (c) (R) (TM)" },
+    { "input": "a\u2028b\u2029c\u000Bd", "output": "a\nb\nc\nd" },
+    { "input": "zero\u200Bwidth\u00A0space", "output": "zerowidth space" }
+  ]
+}

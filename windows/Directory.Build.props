@@ -1,0 +1,18 @@
+<Project>
+  <!-- Shared by every Windows project. The version must match the next joint release. -->
+  <PropertyGroup>
+    <Version>0.7.0</Version>
+    <Authors>TypeThru contributors</Authors>
+    <Product>TypeThru</Product>
+    <Copyright>MIT License</Copyright>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <!-- No build machine paths in the binaries. -->
+    <PathMap>$(MSBuildThisFileDirectory)=/src/</PathMap>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

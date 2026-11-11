@@ -5,12 +5,13 @@ Guidance for AI coding agents working on TypeThru. Read this before changing cod
 TypeThru is a macOS menu bar app that types the clipboard as key presses into VDI and remote
 desktop sessions where paste does not work. It is small (eight Swift files, one C++ helper,
 a few shell scripts) and has no package manager or Xcode project; a `Makefile` runs everything.
+A Windows version with the same features lives in `windows/` (C#, .NET 10, WPF); see Windows below.
 
 ## Layout
 
 | Path | Role |
 |---|---|
-| `Makefile` | Entry point: `make build`, `test`, `package`, `icon`, `audit`, `check`, `hooks`, `cert`, `update-key` |
+| `Makefile` | Entry point: `make build`, `test`, `package`, `package-windows`, `windows`, `icon`, `audit`, `check`, `hooks`, `cert`, `update-key` |
 | `Sources/main.swift` | App: key map from the active layout, Quartz typing methods, typing tests, global hotkey, onboarding, diagnostics |
 | `Sources/Panel.swift` | Menu bar panel (SwiftUI, Liquid Glass on macOS 26+, light or dark with the system). A non-activating panel, so the target app stays in front |
 | `Sources/ScreenText.swift` | Copy Text from Screen: area selection with `screencapture -i`, Vision text recognition, rows back in reading order, clipboard write |
@@ -34,11 +35,16 @@ a few shell scripts) and has no package manager or Xcode project; a `Makefile` r
 | `scripts/make-icon.sh`, `scripts/make-icon.swift` | Redraw `Resources/AppIcon.icns` and the README logos |
 | `scripts/make-cert.sh` | Once per release signer: the self-signed "TypeThru Release" certificate (`make cert`) |
 | `scripts/update-key.swift` | Creates the update signing key (`make update-key`) and signs disk images for `package.sh` |
+| `windows/` | The Windows app: `TypeThru.Core` (shared rules, any OS), `TypeThru` (WPF app), `TypeThru.Tests` (xUnit) |
+| `shared/test-cases.json` | Text cases both apps must pass identically; read by `Tests.swift` and `TypeThru.Tests` |
+| `scripts/windows-check.sh` | Windows core tests and a compile of the Windows app on the Mac (`make windows`; part of `make check`) |
+| `scripts/package-windows.sh` | Downloads the exe the Windows workflow built for this commit and signs it (`make package-windows`) |
+| `scripts/make-ico.py` | Packs the Windows icon; `make icon` runs it |
 | `CHANGELOG.md` | Release notes, newest first, one `## <version> · <date>` heading each; built into the app and shown after updates |
 | `Resources/AppIcon.icns` | App icon, copied into the app by `build.sh` |
 | `docs/` | README images: logos and light and dark panel screenshots. Update them when the icon or panel changes |
 | `.githooks/pre-push` | Runs `scripts/check.sh` before every push (enable with `make hooks`) |
-| `.github/workflows/` | CI (`make check` on macOS 26) and CodeQL code scanning (Swift and C++) |
+| `.github/workflows/` | CI (`make check` on macOS 26), the Windows build and tests (`windows.yml`, release exes), and CodeQL (Swift, C++, C#) |
 
 Identifiers: bundle ID `io.github.sayre4ux.typethru`, launch daemon label and socket
 `io.github.sayre4ux.typethru.virtual-keyboard`, helper binary `TypeThru-VirtualKeyboard`.
@@ -233,6 +239,41 @@ runtime and notarizes when `TYPETHRU_NOTARY_PROFILE` names a `notarytool` keycha
 Releases are GitHub pre-releases with the DMG and its `.sig` attached; bump the version in `build.sh` first.
 The README keeps user steps short; put detail for contributors here.
 
+## Windows
+
+`windows/` holds a Windows version with the same features and rules. Keep the two apps in step:
+a change to text rules, Markdown, reading order, update checks, or release notes goes into both,
+with a case in `shared/test-cases.json` when it is about text.
+
+| Path | Mac counterpart |
+|---|---|
+| `TypeThru.Core/TextRules.cs` | `Typer` replacements, `withoutTrailingLineBreaks`, `markdown` |
+| `TypeThru.Core/Typing.cs` | speeds, `VirtualKeyboard.timing`, `TypingTest`, `Shortcut` rules |
+| `TypeThru.Core/UpdateFeed.cs` | `Updates` (feed, release URLs, notes, Ed25519 check; same public key) |
+| `TypeThru.Core/Notes.cs` | `Changelog`, `ScreenText.layout` (pixel boxes, origin top left) |
+| `TypeThru.Core/Settings.cs` | `UserDefaults` keys, as JSON in `%APPDATA%\TypeThru\settings.json` |
+| `TypeThru/Keyboard.cs` | key map from the layout, `Typer.type`, `StopWatcher` (SendInput, no helper) |
+| `TypeThru/ScreenCopy.cs` | `ScreenText` (drag overlay, in-memory capture, `Windows.Media.Ocr`) |
+| `TypeThru/Updater.cs` | `Updates.install` (signature, newer `ProductVersion`, rename the running exe) |
+| `TypeThru/Controller.cs`, `Windows.cs`, `System.cs` | `AppDelegate`, panel, Settings, What's New, hotkeys, install |
+
+Differences, by design: no driver, helper, or password (SendInput with hardware scan codes reaches
+remote clients); installs per user in `%LOCALAPPDATA%\Programs\TypeThru` with a Start menu
+shortcut and a `HKCU\…\Run` login item; no Screen Recording permission exists on Windows; it
+cannot type into apps running as administrator (Windows blocks that) and says so; Copy Text from
+Screen has no Space-to-pick-a-window. Shift is the only modifier for characters, as on the Mac.
+
+Build and release: `make windows` tests the core and compiles the app on the Mac (needs the
+.NET 10 SDK, for example in `~/.dotnet`). Release exes must come from the Windows workflow,
+because only a Windows build writes the exe's icon, version, and manifest (DPI awareness). After
+pushing, `make package-windows` downloads that build for the current commit, names it
+`TypeThru-<version>-windows.exe`, and signs it with the same update key. Attach both files to
+the same GitHub release as the DMG; the version is in `windows/Directory.Build.props` and must
+have a `CHANGELOG.md` entry. Releases of the two apps share version numbers.
+
+Windows privacy rules, checked by the audit: no `SetWindowsHookEx`, raw input, or logging;
+clipboard writes and screen capture only in `ScreenCopy.cs`; network only in `Updater.cs`.
+
 ## Verifying changes
 
 Agents can verify: `make check` (and its parts), `--print-map`, `--check-protocol`, and
@@ -245,8 +286,9 @@ update installs, `make cert` (it asks for the password), and installing from the
 Open Anyway, the move-to-Applications check). When a change affects
 these, list the exact manual steps for the user instead of claiming it works.
 
-Untested so far: RDP and VDI clients other than the one used during development, a real
-in-app update (Accessibility kept across it), Developer ID signing, notarization, and the Intel build.
+Untested so far: RDP and VDI clients other than the one used during development, Developer ID
+signing, notarization, the Intel build, and the whole Windows app on Windows (only its core
+rules are tested, on any OS; it compiles but has not run).
 
 ## Style
 

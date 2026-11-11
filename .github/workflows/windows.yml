@@ -1,0 +1,36 @@
+# Builds and tests the Windows app on Windows. Release exes come from here: only a Windows build
+# writes the exe's icon, version, and manifest. make package-windows downloads the artifact and
+# signs it on the Mac, so the update key never leaves the release signer's keychain.
+name: Windows
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test windows/TypeThru.Tests -c Release
+      - run: dotnet publish windows/TypeThru/TypeThru.csproj -c Release -o out
+      - name: Check the exe's version and manifest
+        shell: pwsh
+        run: |
+          $info = (Get-Item out/TypeThru.exe).VersionInfo
+          if ($info.ProductName -ne 'TypeThru') { throw "ProductName is '$($info.ProductName)', not TypeThru" }
+          $version = (Select-String -Path windows/Directory.Build.props -Pattern '<Version>(.+)</Version>').Matches[0].Groups[1].Value
+          if (-not $info.ProductVersion.StartsWith($version)) { throw "ProductVersion $($info.ProductVersion) does not match $version" }
+          Write-Output "TypeThru $($info.ProductVersion), $((Get-Item out/TypeThru.exe).Length) bytes"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TypeThru-windows-${{ github.sha }}
+          path: out/TypeThru.exe
+          retention-days: 30

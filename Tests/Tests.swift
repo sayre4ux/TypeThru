@@ -244,6 +244,32 @@ section("Release notes before installing") {
     check(linked.runs.allSatisfy { $0.link == nil } && String(linked.characters) == "See this and bold", "links removed, text kept")
 }
 
+section("Shared cases (the Windows app passes the same file)") {
+    guard let data = FileManager.default.contents(atPath: "shared/test-cases.json"),
+          let cases = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        check(false, "shared/test-cases.json is readable"); return
+    }
+    for item in cases["markdown"] as? [[String: Any]] ?? [] {
+        let parsed = Typer.markdown(item["input"] as? String ?? "")
+        var expected: [Int: [TextFormat]] = [:]
+        for (position, names) in item["formats"] as? [String: [String]] ?? [:] {
+            expected[Int(position)!] = names.map { $0 == "bold" ? .bold : .italic }
+        }
+        check(parsed.text == item["text"] as? String && parsed.formats == expected, "shared markdown: \(item["input"] ?? "")")
+    }
+    for input in cases["markdownUnchanged"] as? [String] ?? [] {
+        check(Typer.markdown(input).text == input && Typer.markdown(input).spans == 0, "shared unchanged: \(input.debugDescription)")
+    }
+    for item in cases["trailingLineBreaks"] as? [[String: String]] ?? [] {
+        check(Typer.withoutTrailingLineBreaks(item["input"]!) == item["output"], "shared trailing line breaks: \(item["input"]!.debugDescription)")
+    }
+    for item in cases["replacements"] as? [[String: String]] ?? [] {
+        check(typer.replacingUntypable(in: item["input"]!, map: us, method: .virtualKeyboard).text == item["output"],
+              "shared replacements: \(item["input"]!.debugDescription)")
+    }
+    check((cases["markdown"] as? [Any])?.count ?? 0 >= 6, "shared cases present")
+}
+
 section("Custom shortcut") {
     let standard = Shortcut.standard
     check(standard.problem == nil && standard.caution == nil, "Control+Backslash is allowed without a warning")

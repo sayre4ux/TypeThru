@@ -2,6 +2,10 @@
 /TypeThru.app/
 /*.dmg
 /*.dmg.sig
+/*-windows.exe
+/*-windows.exe.sig
+windows/**/bin/
+windows/**/obj/
 /.build/
 *.iconset/
 

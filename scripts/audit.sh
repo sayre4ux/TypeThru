@@ -69,6 +69,18 @@ screen=$(grep -n -E 'setString\(|clearContents\(|screencapture|SCScreenshotManag
 [ -z "$screen" ] && ok "clipboard writes and screen capture only in Copy Text from Screen" || fail "clipboard write or screen capture outside ScreenText.swift: $screen"
 network=$(grep -n -E 'URLSession|URLRequest|NWConnection|NWPathMonitor|CFStream|getaddrinfo' Sources/*.swift | grep -v '^Sources/Updates.swift:' || true)
 [ -z "$network" ] && ok "network access only in the update check" || fail "network access outside Updates.swift: $network"
+# The Windows app keeps the same contract: no keyboard hooks or raw input, no logging, clipboard
+# writes and screen capture only in Copy Text from Screen, network only in the update check.
+wintaps=$(grep -rn -E 'SetWindowsHookEx|RegisterRawInputDevices|GetRawInputData|WH_KEYBOARD|Debug\.Write|Trace\.Write|EventLog|ILogger|Console\.Write' windows --include='*.cs' | grep -v '/bin/\|/obj/' || true)
+[ -z "$wintaps" ] && ok "Windows: no keyboard hooks, raw input, or logging" || fail "Windows app breaks the privacy contract: $wintaps"
+winscreen=$(grep -rn -E 'Clipboard\.(SetText|SetData|SetDataObject)|[gG]raphics\.CopyFromScreen|BitBlt|PrintWindow' windows --include='*.cs' | grep -v '/bin/\|/obj/\|windows/TypeThru/ScreenCopy.cs:' || true)
+[ -z "$winscreen" ] && ok "Windows: clipboard writes and screen capture only in ScreenCopy.cs" || fail "Windows clipboard write or screen capture outside ScreenCopy.cs: $winscreen"
+winnet=$(grep -rn -E 'HttpClient|WebRequest|WebClient|TcpClient|Sockets' windows --include='*.cs' | grep -v '/bin/\|/obj/\|windows/TypeThru/Updater.cs:' || true)
+[ -z "$winnet" ] && ok "Windows: network access only in Updater.cs" || fail "Windows network access outside Updater.cs: $winnet"
+mackey=$(sed -n 's/.*base64Encoded: "\([^"]*\)".*/\1/p' Sources/UpdateKey.swift)
+winkey=$(sed -n 's/.*PublicKey = Convert.FromBase64String("\([^"]*\)").*/\1/p' windows/TypeThru.Core/UpdateFeed.cs)
+[ -n "$mackey" ] && [ "$mackey" = "$winkey" ] && ok "both apps check updates with the same public key" || fail "update public key differs between Sources/UpdateKey.swift and windows/TypeThru.Core/UpdateFeed.cs"
+
 prints=$(grep -n 'print(' Sources/*.swift | grep -v '^Sources/main.swift:' || true)
 [ -z "$prints" ] && ok "no print output outside --print-map" || fail "print outside main.swift: $prints"
 if [ -n "$RANGE" ] && git diff "$RANGE" -- '*.swift' '*.cpp' '*.hpp' ':!Tests' | grep -E '^\+' | grep -q -E 'URLSession|NWConnection|tapCreate|addGlobalMonitor|NSPasteboard|AXUIElement|CGEventSource\.(keyState|buttonState)|UserDefaults'; then
@@ -82,7 +94,7 @@ else
 fi
 
 # 7. No VDI or remote desktop vendor names in the app or README.
-vendors=$(grep -n -i -E 'citrix|vmware|horizon client|omnissa|workspaces|azure virtual desktop|windows 365|parallels|teamviewer|anydesk|chrome remote' Sources/*.swift README.md || true)
+vendors=$(grep -n -i -E 'citrix|vmware|horizon client|omnissa|workspaces|azure virtual desktop|windows 365|parallels|teamviewer|anydesk|chrome remote' Sources/*.swift README.md windows/TypeThru/*.cs windows/TypeThru.Core/*.cs || true)
 [ -z "$vendors" ] && ok "no vendor names in the app or README" || fail "vendor names: $vendors"
 
 # 8. Built app: valid signature, and setup fingerprints match the bundled files.

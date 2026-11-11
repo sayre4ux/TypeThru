@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Everything that does not need Windows: text rules, reading order, updates, release notes.
+       Tested on any OS by TypeThru.Tests. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>TypeThru</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Ed25519 for update signatures; .NET has no built-in Ed25519. Pure managed code. -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+  </ItemGroup>
+</Project>

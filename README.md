@@ -96,6 +96,12 @@
 TypeThru is a tool, and you decide how to use it. Follow the rules of the computers,
 sessions, and websites you use it with, including your workplace's IT policy and a site's terms.
 
+## Windows
+
+A Windows version with the same features is being built in [`windows/`](windows). It needs no
+driver or administrator password, and installs for your user only. The first beta comes with
+the next release.
+
 ## Install
 
 Requires macOS 13 or later, on Apple silicon or Intel.

@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 export TYPETHRU_APP=.build/check/TypeThru.app
 echo "== Tests"
 scripts/test.sh
+echo "== Windows"
+scripts/windows-check.sh
 echo "== Build"
 scripts/build.sh
 echo "== Audit"
