@@ -5,6 +5,12 @@ targets = ["x86_64-pc-windows-msvc"]
 [advisories]
 # Fails on any advisory for a crate in Cargo.lock, including unmaintained and yanked crates.
 yanked = "deny"
+ignore = [
+    # Unmaintained (archived), not a vulnerability. It reaches TypeThru only through Slint's
+    # compile-time tools (slint-macros, slint-build via spin_on), so none of it is in the exe.
+    # Check again when Slint updates.
+    { id = "RUSTSEC-2026-0441", reason = "pin-utils: compile-time only, via Slint's macros and build script; no maintained release exists" },
+]
 
 [licenses]
 # Permissive licences only, compatible with TypeThru's MIT licence, plus Slint's royalty-free
@@ -14,6 +20,8 @@ confidence-threshold = 0.9
 
 [bans]
 wildcards = "deny"
+# The app's link to the core crate is a path without a version; neither crate is published.
+allow-wildcard-paths = true
 multiple-versions = "allow"
 
 [sources]
