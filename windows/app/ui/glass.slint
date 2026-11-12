@@ -1,0 +1,177 @@
+// Glass controls like the Mac panel (Liquid Glass on macOS 26): Windows draws the blur behind the
+// window (Acrylic); these add the tint, the bright rim, and pill-shaped controls.
+
+import { Palette } from "std-widgets.slint";
+
+export global Glass {
+    // Follows Windows light and dark mode.
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+    // No blur behind the window (older Windows, or it failed): an opaque background instead.
+    in-out property <bool> solid;
+    out property <color> text: dark ? #f5f5f7 : #1d1d1f;
+    out property <color> secondary: dark ? #f5f5f7a6 : #1d1d1fa6;
+    // Brand.glassTint on the Mac.
+    out property <color> tint: solid ? (dark ? #202022 : #f3f3f5) : (dark ? #00000073 : #ffffff59);
+    out property <color> edge: dark ? #ffffff2e : #ffffffc0;
+    out property <color> fill: dark ? #ffffff1a : #ffffff80;
+    out property <color> fill-hover: dark ? #ffffff29 : #ffffffb0;
+    out property <color> fill-pressed: dark ? #ffffff0f : #ffffff50;
+    out property <color> well: dark ? #ffffff12 : #0000000d;
+    // Brand.accent on the Mac.
+    out property <color> accent: #6b94ff;
+}
+
+component Pill {
+    in property <bool> primary;
+    in property <length> radius: self.height / 2;
+    in property <bool> enabled: true;
+    callback clicked;
+    opacity: root.enabled ? 1 : 0.45;
+    accessible-role: button;
+    accessible-action-default => { root.clicked(); }
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+    Rectangle {
+        border-radius: root.radius;
+        background: root.primary
+            ? (touch.pressed ? @linear-gradient(180deg, #5c86f0 0%, #4a73dd 100%)
+               : touch.has-hover ? @linear-gradient(180deg, #8eaeff 0%, #6b94ff 100%)
+               : @linear-gradient(180deg, #82a5ff 0%, #5f88f5 100%))
+            : (touch.pressed ? Glass.fill-pressed : touch.has-hover ? Glass.fill-hover : Glass.fill);
+        border-width: 1px;
+        border-color: root.primary ? #ffffff59 : Glass.edge;
+        // The shading below stays inside the rounded shape.
+        clip: true;
+        // A soft lower edge, and light along the top edge, as on glass.
+        Rectangle {
+            x: 1px; y: parent.height - self.height - 1px; width: parent.width - 2px; height: parent.height / 2;
+            background: @linear-gradient(180deg, #00000000 0%, #00000014 100%);
+        }
+        Rectangle {
+            x: 1px; y: 1px; width: parent.width - 2px; height: parent.height / 2;
+            background: @linear-gradient(180deg, #ffffff33 0%, #ffffff00 100%);
+        }
+    }
+    @children
+}
+
+export component GlassButton inherits Pill {
+    in property <string> label;
+    in property <string> shortcut;
+    in property <image> icon;
+    in property <length> font-size: 14px;
+    in property <int> weight: 400;
+    in property <length> pad: 16px;
+    accessible-label: root.label;
+    height: 34px;
+    HorizontalLayout {
+        padding-left: root.pad; padding-right: root.pad; spacing: 10px;
+        alignment: root.shortcut == "" && root.icon.width == 0 ? center : stretch;
+        if root.icon.width > 0: Image { source: root.icon; width: 18px; colorize: root.primary ? white : Glass.text; }
+        Text {
+            text: root.label; vertical-alignment: center; font-size: root.font-size; font-weight: root.weight;
+            color: root.primary ? white : Glass.text; horizontal-stretch: root.shortcut == "" ? 0 : 1;
+        }
+        if root.shortcut != "": Text {
+            text: root.shortcut; vertical-alignment: center; font-size: 13px;
+            color: (root.primary ? white : Glass.text).transparentize(25%);
+        }
+    }
+}
+
+export component GlassSwitch {
+    in property <string> label;
+    in-out property <bool> checked;
+    callback toggled(bool);
+    accessible-role: switch;
+    accessible-label: root.label;
+    accessible-checked: root.checked;
+    accessible-action-default => { touch.clicked(); }
+    HorizontalLayout {
+        spacing: 12px;
+        Text { text: root.label; vertical-alignment: center; color: Glass.text; font-size: 15px; }
+        Rectangle {
+            width: 50px; height: 28px;
+            border-radius: 14px;
+            background: root.checked ? Glass.accent : Glass.well;
+            border-width: 1px; border-color: root.checked ? #ffffff40 : Glass.edge;
+            animate background { duration: 150ms; }
+            Rectangle {
+                width: 30px; height: 24px; y: 2px;
+                x: root.checked ? parent.width - self.width - 2px : 2px;
+                border-radius: 12px; background: white;
+                border-width: 0.5px; border-color: #00000026;
+                animate x { duration: 150ms; easing: ease-out; }
+            }
+        }
+        Rectangle { horizontal-stretch: 1; }
+    }
+    touch := TouchArea {
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+export component Picker {
+    in property <[string]> model;
+    in-out property <int> current-index;
+    callback selected(int);
+    height: 32px;
+    accessible-role: combobox;
+    accessible-value: root.model[root.current-index];
+    touch := TouchArea { clicked => { popup.show(); } }
+    Rectangle {
+        border-radius: 9px;
+        background: touch.has-hover ? Glass.fill : Glass.well;
+        HorizontalLayout {
+            padding-left: 14px; padding-right: 10px; spacing: 8px;
+            Text { text: root.model[root.current-index]; vertical-alignment: center; color: Glass.text; font-size: 15px; horizontal-stretch: 1; }
+            Image { source: @image-url("chevrons.svg"); width: 16px; colorize: Glass.text; }
+        }
+    }
+    popup := PopupWindow {
+        y: root.height + 4px;
+        width: root.width;
+        Rectangle {
+            border-radius: 10px;
+            background: Glass.dark ? #2c2c2ef7 : #f6f6f8f7;
+            border-width: 1px; border-color: Glass.dark ? #ffffff26 : #0000001a;
+            VerticalLayout {
+                padding: 5px;
+                for item[i] in root.model: Rectangle {
+                    height: 28px; border-radius: 6px;
+                    background: row.has-hover ? Glass.accent : transparent;
+                    row := TouchArea {
+                        clicked => {
+                            root.current-index = i;
+                            root.selected(i);
+                        }
+                    }
+                    Text {
+                        x: 10px; height: parent.height; text: item; vertical-alignment: center; font-size: 14px;
+                        color: row.has-hover ? white : Glass.text;
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component Secondary inherits Text {
+    font-size: 12.5px;
+    color: Glass.secondary;
+    wrap: word-wrap;
+}
+
+// The panel's background: the tint over the blur, with a bright rim like the Mac glass.
+export component GlassBackground inherits Rectangle {
+    in property <length> radius: 8px;
+    border-radius: root.radius;
+    background: Glass.tint;
+    border-width: 1px;
+    border-color: Glass.edge;
+}

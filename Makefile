@@ -9,7 +9,7 @@ package:   ## Build the download disk image
 	scripts/package.sh
 package-windows: ## Download the Windows exe built by CI for this commit and sign it
 	scripts/package-windows.sh
-windows:   ## Windows core tests and a compile of the Windows app (needs the .NET 10 SDK)
+windows:   ## Windows app checks on the Mac: Rust format, lint, tests, Windows compile (and the C# app with .NET 10)
 	scripts/windows-check.sh
 icon:      ## Redraw the app icon and README logos
 	scripts/make-icon.sh

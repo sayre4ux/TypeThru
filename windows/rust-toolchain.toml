@@ -1,0 +1,7 @@
+# Pinned so every build of the Windows app uses the same compiler. rustup installs it beside
+# the default toolchain; it does not change the default.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]
+targets = ["x86_64-pc-windows-msvc"]

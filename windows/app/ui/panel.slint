@@ -1,0 +1,163 @@
+// The panel that opens from the notification area icon: the Mac menu bar panel (Sources/Panel.swift).
+
+import { Glass, GlassBackground, GlassButton, GlassSwitch, Picker, Secondary } from "glass.slint";
+
+export component Panel inherits Window {
+    // State shown in the panel, set by the app.
+    in property <string> status: "Ready";
+    in property <bool> ready: true;
+    in property <bool> busy;
+    in property <string> shortcut: "Ctrl+\\";
+    in property <string> copy-shortcut: "Ctrl+]";
+    in property <bool> copy-from-screen: true;
+    in property <[string]> speeds;
+    in property <[string]> speed-details;
+    in-out property <int> speed-index;
+    in-out property <bool> shift-return: true;
+    // A short message at the top, such as a shortcut another app already uses.
+    in property <string> notice;
+    in property <bool> update-available;
+    in property <string> update-text;
+    in property <bool> installing;
+    in property <string> font;
+    // Above other windows, as a flyout; the Mac preview turns it off.
+    in property <bool> on-top: true;
+    in-out property <bool> solid <=> Glass.solid;
+    out property <bool> dark: Glass.dark;
+
+    callback type-clipboard();
+    callback copy-from-screen-clicked();
+    callback run-test(int);
+    callback speed-changed(int);
+    callback shift-return-changed(bool);
+    callback open-settings();
+    callback whats-new();
+    callback install-update();
+    callback quit();
+    callback dismiss();
+
+    title: "TypeThru";
+    width: 360px;
+    no-frame: true;
+    always-on-top: root.on-top;
+    background: transparent;
+    default-font-family: root.font;
+    default-font-size: 14px;
+    forward-focus: scope;
+
+    GlassBackground { }
+
+    // Esc closes the panel.
+    scope := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.dismiss();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 12px;
+
+        HorizontalLayout {
+            spacing: 12px;
+            Image { source: @image-url("icon.png"); width: 34px; height: 34px; }
+            Text { text: "TypeThru"; font-size: 19px; font-weight: 600; color: Glass.text; vertical-alignment: center; horizontal-stretch: 1; }
+            Rectangle {
+                width: badge.preferred-width; height: 28px; y: (parent.height - self.height) / 2;
+                border-radius: 14px; background: Glass.fill; border-width: 1px; border-color: Glass.edge;
+                badge := HorizontalLayout {
+                    padding-left: 11px; padding-right: 13px; spacing: 7px;
+                    Rectangle {
+                        width: 9px; height: 9px; y: (parent.height - 9px) / 2; border-radius: 4.5px;
+                        background: root.ready ? #30d158 : #ff9f0a;
+                    }
+                    Text { text: root.status; font-size: 13px; font-weight: 500; color: Glass.text; vertical-alignment: center; }
+                }
+            }
+        }
+
+        if root.notice != "": Rectangle {
+            border-radius: 12px; background: #ff9f0a26; border-width: 1px; border-color: Glass.edge;
+            VerticalLayout {
+                padding: 10px;
+                Text { text: root.notice; color: Glass.text; font-size: 13px; wrap: word-wrap; }
+            }
+        }
+
+        if root.update-available: Rectangle {
+            border-radius: 16px; background: Glass.accent.transparentize(82%); border-width: 1px; border-color: Glass.edge;
+            VerticalLayout {
+                padding: 12px; spacing: 6px;
+                Text { text: "Update available"; font-weight: 600; color: Glass.text; }
+                Secondary { text: root.update-text; }
+                HorizontalLayout {
+                    spacing: 8px; alignment: start;
+                    GlassButton { label: "What's New"; height: 28px; font-size: 13px; pad: 14px; enabled: !root.installing; clicked => { root.whats-new(); } }
+                    GlassButton {
+                        label: root.installing ? "Installing…" : "Install"; primary: true; height: 28px; font-size: 13px; weight: 600; pad: 14px;
+                        enabled: !root.installing; clicked => { root.install-update(); }
+                    }
+                }
+            }
+        }
+
+        VerticalLayout {
+            spacing: 8px;
+            GlassButton {
+                label: "Type Clipboard"; shortcut: root.shortcut; icon: @image-url("keyboard.svg"); primary: true;
+                font-size: 17px; weight: 600; height: 46px; pad: 20px; enabled: !root.busy;
+                clicked => { root.type-clipboard(); }
+            }
+            Secondary { text: "Esc, a mouse click, or switching windows stops typing."; }
+        }
+        if root.copy-from-screen: GlassButton {
+            label: "Copy Text from Screen"; shortcut: root.copy-shortcut; icon: @image-url("scan.svg"); height: 38px; font-size: 15px; radius: 10px;
+            enabled: !root.busy; clicked => { root.copy-from-screen-clicked(); }
+        }
+
+        VerticalLayout {
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 12px;
+                Text { text: "Speed"; vertical-alignment: center; color: Glass.text; font-size: 15px; }
+                Picker {
+                    model: root.speeds; current-index <=> root.speed-index; horizontal-stretch: 1;
+                    selected(i) => { root.speed-changed(i); }
+                }
+            }
+            Secondary { text: root.speed-details[root.speed-index]; }
+        }
+        GlassSwitch {
+            label: "Type line breaks as Shift+Enter"; checked <=> root.shift-return;
+            toggled(on) => { root.shift-return-changed(on); }
+        }
+
+        VerticalLayout {
+            spacing: 6px;
+            Text { text: "Typing tests"; font-weight: 600; color: Glass.text; font-size: 15px; }
+            Secondary { text: "Starts in 3 seconds. Click the target text field first."; }
+            GridLayout {
+                spacing: 8px;
+                Row {
+                    GlassButton { label: "Short"; radius: 9px; enabled: !root.busy; clicked => { root.run-test(0); } }
+                    GlassButton { label: "Capitals"; radius: 9px; enabled: !root.busy; clicked => { root.run-test(1); } }
+                    GlassButton { label: "Symbols"; radius: 9px; enabled: !root.busy; clicked => { root.run-test(2); } }
+                }
+                Row {
+                    GlassButton { label: "Smart symbols"; colspan: 2; radius: 9px; enabled: !root.busy; clicked => { root.run-test(3); } }
+                    GlassButton { label: "Long"; radius: 9px; enabled: !root.busy; clicked => { root.run-test(4); } }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            GlassButton { label: "Settings"; icon: @image-url("gear.svg"); radius: 9px; pad: 12px; clicked => { root.open-settings(); } }
+            Rectangle { horizontal-stretch: 1; }
+            GlassButton { label: "Quit"; radius: 9px; clicked => { root.quit(); } }
+        }
+    }
+}

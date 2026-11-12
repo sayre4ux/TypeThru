@@ -77,9 +77,21 @@ winscreen=$(grep -rn -E 'Clipboard\.(SetText|SetData|SetDataObject)|[gG]raphics\
 [ -z "$winscreen" ] && ok "Windows: clipboard writes and screen capture only in ScreenCopy.cs" || fail "Windows clipboard write or screen capture outside ScreenCopy.cs: $winscreen"
 winnet=$(grep -rn -E 'HttpClient|WebRequest|WebClient|TcpClient|Sockets' windows --include='*.cs' | grep -v '/bin/\|/obj/\|windows/TypeThru/Updater.cs:' || true)
 [ -z "$winnet" ] && ok "Windows: network access only in Updater.cs" || fail "Windows network access outside Updater.cs: $winnet"
+# The Rust version of the Windows app (replacing the C# one) keeps the same contract, and its
+# unsafe code (direct Windows calls) stays in the files that need it, so it is easy to review.
+rs() { grep -rn -E "$1" windows --include='*.rs' --include='*.slint' | grep -v '^windows/target/' || true; }
+rtaps=$(rs 'SetWindowsHookEx|RegisterRawInputDevices|GetRawInputData|WH_KEYBOARD|(print|println|dbg)!\(|(^|[^a-z_])(log|tracing)::' | grep -v '^windows/[a-z]*/build.rs:' || true)
+[ -z "$rtaps" ] && ok "Windows (Rust): no keyboard hooks, raw input, or logging" || fail "Windows app (Rust) breaks the privacy contract: $rtaps"
+rscreen=$(rs 'SetClipboardData|EmptyClipboard|BitBlt|StretchBlt|PrintWindow|GetDIBits' | grep -v '^windows/app/src/screen_copy.rs:' || true)
+[ -z "$rscreen" ] && ok "Windows (Rust): clipboard writes and screen capture only in screen_copy.rs" || fail "Windows (Rust) clipboard write or screen capture outside screen_copy.rs: $rscreen"
+rnet=$(rs 'WinHttp|std::net|TcpStream|UdpSocket|reqwest|ureq|hyper::' | grep -v '^windows/app/src/updater.rs:' || true)
+[ -z "$rnet" ] && ok "Windows (Rust): network access only in updater.rs" || fail "Windows (Rust) network access outside updater.rs: $rnet"
+runsafe=$(rs '(^|[^a-z_])unsafe([^a-z_]|$)' | grep -v -E '^windows/app/src/(native|screen_copy|install)\.rs:|forbid\(unsafe_code\)|unsafe_op_in_unsafe_fn' || true)
+[ -z "$runsafe" ] && ok "Windows (Rust): unsafe code only in native.rs, screen_copy.rs, and install.rs" || fail "Windows (Rust) unsafe code elsewhere: $runsafe"
 mackey=$(sed -n 's/.*base64Encoded: "\([^"]*\)".*/\1/p' Sources/UpdateKey.swift)
 winkey=$(sed -n 's/.*PublicKey = Convert.FromBase64String("\([^"]*\)").*/\1/p' windows/TypeThru.Core/UpdateFeed.cs)
-[ -n "$mackey" ] && [ "$mackey" = "$winkey" ] && ok "both apps check updates with the same public key" || fail "update public key differs between Sources/UpdateKey.swift and windows/TypeThru.Core/UpdateFeed.cs"
+rustkey=$(sed -n 's/.*PUBLIC_KEY: &str = "\([^"]*\)".*/\1/p' windows/core/src/update_feed.rs)
+[ -n "$mackey" ] && [ "$mackey" = "$winkey" ] && [ "$mackey" = "$rustkey" ] && ok "every app checks updates with the same public key" || fail "update public key differs between Sources/UpdateKey.swift, windows/TypeThru.Core/UpdateFeed.cs, and windows/core/src/update_feed.rs"
 
 prints=$(grep -n 'print(' Sources/*.swift | grep -v '^Sources/main.swift:' || true)
 [ -z "$prints" ] && ok "no print output outside --print-map" || fail "print outside main.swift: $prints"
@@ -94,7 +106,8 @@ else
 fi
 
 # 7. No VDI or remote desktop vendor names in the app or README.
-vendors=$(grep -n -i -E 'citrix|vmware|horizon client|omnissa|workspaces|azure virtual desktop|windows 365|parallels|teamviewer|anydesk|chrome remote' Sources/*.swift README.md windows/TypeThru/*.cs windows/TypeThru.Core/*.cs || true)
+vendor_names='citrix|vmware|horizon client|omnissa|workspaces|azure virtual desktop|windows 365|parallels|teamviewer|anydesk|chrome remote'
+vendors=$( { grep -n -i -E "$vendor_names" Sources/*.swift README.md windows/TypeThru/*.cs windows/TypeThru.Core/*.cs; grep -rn -i -E "$vendor_names" windows --include='*.rs' --include='*.slint' | grep -v '^windows/target/'; } || true)
 [ -z "$vendors" ] && ok "no vendor names in the app or README" || fail "vendor names: $vendors"
 
 # 8. Built app: valid signature, and setup fingerprints match the bundled files.

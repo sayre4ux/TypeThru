@@ -1,0 +1,22 @@
+# cargo deny check (Windows workflow): known security advisories, licences, and package sources.
+[graph]
+targets = ["x86_64-pc-windows-msvc"]
+
+[advisories]
+# Fails on any advisory for a crate in Cargo.lock, including unmaintained and yanked crates.
+yanked = "deny"
+
+[licenses]
+# Permissive licences only, compatible with TypeThru's MIT licence, plus Slint's royalty-free
+# licence, which asks for a "Made with Slint" credit (in Settings > Help).
+allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "BSL-1.0", "ISC", "Unicode-3.0", "Zlib", "LicenseRef-Slint-Royalty-free-2.0"]
+confidence-threshold = 0.9
+
+[bans]
+wildcards = "deny"
+multiple-versions = "allow"
+
+[sources]
+# crates.io only: no git dependencies or other registries.
+unknown-registry = "deny"
+unknown-git = "deny"

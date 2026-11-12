@@ -1,0 +1,41 @@
+[package]
+name = "typethru"
+description = "TypeThru for Windows: types the clipboard as key presses into VDI and remote desktops"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "TypeThru"
+path = "src/main.rs"
+
+[dependencies]
+typethru-core = { path = "../core" }
+# Exact version: the winit access below is Slint's unstable API.
+slint = { version = "=1.18.1", features = ["raw-window-handle-06", "unstable-winit-030"] }
+
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = "0.6"
+tray-icon = "0.26"
+window-vibrancy = "0.8"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
+[lints]
+workspace = true
