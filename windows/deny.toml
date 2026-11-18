@@ -10,6 +10,9 @@ ignore = [
     # compile-time tools (slint-macros, slint-build via spin_on), so none of it is in the exe.
     # Check again when Slint updates.
     { id = "RUSTSEC-2026-0441", reason = "pin-utils: compile-time only, via Slint's macros and build script; no maintained release exists" },
+    # Unmaintained, not a vulnerability; in the exe through Slint's core (dates in its date
+    # picker, which TypeThru does not use). No safe upgrade exists until Slint replaces it.
+    { id = "RUSTSEC-2026-0543", reason = "chrono: unmaintained notice only, via Slint's core; no maintained release exists" },
 ]
 
 [licenses]
