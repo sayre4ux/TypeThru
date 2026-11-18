@@ -5237,6 +5237,7 @@ dependencies = [
  "slint-build",
  "tray-icon",
  "typethru-core",
+ "url",
  "window-vibrancy",
  "windows",
  "winresource",

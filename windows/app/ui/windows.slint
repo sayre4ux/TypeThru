@@ -1,0 +1,270 @@
+// The other windows: Settings (the Mac Settings window), What's New, the short notice above the
+// notification area, and the selection for Copy Text from Screen.
+
+import { AboutSlint, Button, ComboBox, GroupBox, Palette, ScrollView, Switch } from "std-widgets.slint";
+
+component Help inherits Text {
+    font-size: 12px;
+    color: Palette.foreground.transparentize(30%);
+    wrap: word-wrap;
+}
+
+component Heading inherits Text {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+component Card inherits Rectangle {
+    border-radius: 8px;
+    background: Palette.control-background;
+    border-width: 1px;
+    border-color: Palette.border;
+    VerticalLayout {
+        padding-left: 14px; padding-right: 14px; padding-top: 12px; padding-bottom: 12px;
+        spacing: 10px;
+        @children
+    }
+}
+
+component Row inherits HorizontalLayout {
+    in property <string> label;
+    spacing: 12px;
+    Text { text: root.label; vertical-alignment: center; horizontal-stretch: 1; wrap: word-wrap; }
+    @children
+}
+
+export component SettingsWindow inherits Window {
+    in property <string> font;
+    in-out property <bool> launch-at-login;
+    in property <string> shortcut;
+    in property <bool> recording;
+    in property <string> shortcut-note;
+    in property <[string]> methods;
+    in-out property <int> method-index;
+    in property <string> method-help;
+    in property <[string]> speeds;
+    in-out property <int> speed-index;
+    in-out property <bool> replace-symbols;
+    in property <[string]> markdown-modes;
+    in-out property <int> markdown-index;
+    in-out property <bool> shift-return;
+    in-out property <bool> copy-from-screen;
+    in property <string> copy-shortcut;
+    in-out property <bool> check-updates;
+    in property <string> version;
+    in property <bool> update-available;
+    in property <bool> installing;
+
+    callback launch-changed(bool);
+    callback toggle-recording();
+    callback method-changed(int);
+    callback speed-changed(int);
+    callback replace-changed(bool);
+    callback markdown-changed(int);
+    callback shift-return-changed(bool);
+    callback copy-changed(bool);
+    callback check-updates-changed(bool);
+    callback check-now();
+    callback update-notes();
+    callback install-update();
+    callback whats-new();
+    callback diagnostics();
+    callback uninstall();
+
+    title: "TypeThru Settings";
+    icon: @image-url("icon.png");
+    default-font-family: root.font;
+    default-font-size: 14px;
+    preferred-width: 520px;
+    min-width: 460px;
+    preferred-height: 680px;
+    min-height: 360px;
+    background: Palette.background;
+
+    ScrollView {
+        VerticalLayout {
+            padding-left: 20px; padding-right: 20px; padding-top: 16px; padding-bottom: 20px;
+            spacing: 10px;
+
+            Heading { text: "General"; }
+            Card {
+                Switch { text: "Open TypeThru at login"; checked <=> root.launch-at-login; toggled => { root.launch-changed(self.checked); } }
+                Row {
+                    label: "Shortcut";
+                    Text { text: root.recording ? "Press keys…" : root.shortcut; font-weight: 500; vertical-alignment: center; }
+                    Button { text: root.recording ? "Cancel" : "Change"; clicked => { root.toggle-recording(); } }
+                }
+                if root.shortcut-note != "": Text { text: root.shortcut-note; color: #e07a00; font-size: 12px; wrap: word-wrap; }
+            }
+
+            Heading { text: "Typing"; }
+            Card {
+                Row {
+                    label: "Method";
+                    ComboBox { model: root.methods; current-index <=> root.method-index; min-width: 240px; selected => { root.method-changed(self.current-index); } }
+                }
+                Help { text: root.method-help; }
+                Row {
+                    label: "Speed";
+                    ComboBox { model: root.speeds; current-index <=> root.speed-index; min-width: 240px; selected => { root.speed-changed(self.current-index); } }
+                }
+                Switch { text: "Replace symbols without a key (• → -)"; checked <=> root.replace-symbols; toggled => { root.replace-changed(self.checked); } }
+                Row {
+                    label: "Markdown (**bold**, *italic*)";
+                    ComboBox { model: root.markdown-modes; current-index <=> root.markdown-index; min-width: 240px; selected => { root.markdown-changed(self.current-index); } }
+                }
+                Switch { text: "Type line breaks as Shift+Enter"; checked <=> root.shift-return; toggled => { root.shift-return-changed(self.checked); } }
+            }
+
+            Heading { text: "Copy Text from Screen"; }
+            Card {
+                Switch {
+                    text: "Copy text from the screen with " + root.copy-shortcut; checked <=> root.copy-from-screen;
+                    toggled => { root.copy-changed(self.checked); }
+                }
+                Help { text: "Drag over an area. Its text is read on this PC by Windows' own text recognition and copied; the picture is never saved."; }
+            }
+
+            Heading { text: "Updates"; }
+            Card {
+                Switch { text: "Check for updates automatically"; checked <=> root.check-updates; toggled => { root.check-updates-changed(self.checked); } }
+                Row { label: "Version"; Text { text: root.version; vertical-alignment: center; } }
+                HorizontalLayout {
+                    spacing: 8px; alignment: start;
+                    if root.update-available: Button { text: "What's New"; enabled: !root.installing; clicked => { root.update-notes(); } }
+                    if root.update-available: Button {
+                        text: root.installing ? "Installing…" : "Install"; primary: true; enabled: !root.installing; clicked => { root.install-update(); }
+                    }
+                    Button { text: "Check Now"; clicked => { root.check-now(); } }
+                }
+            }
+
+            Heading { text: "Help"; }
+            Card {
+                HorizontalLayout {
+                    spacing: 8px; alignment: start;
+                    Button { text: "What's New"; clicked => { root.whats-new(); } }
+                    Button { text: "Diagnostics"; clicked => { root.diagnostics(); } }
+                    Button { text: "Uninstall TypeThru…"; clicked => { root.uninstall(); } }
+                }
+                // Slint's royalty-free licence asks for this credit.
+                AboutSlint { }
+            }
+        }
+    }
+}
+
+export struct NoteLine {
+    text: styled-text,
+    bullet: bool,
+    heading: bool,
+}
+
+export component NotesWindow inherits Window {
+    in property <string> font;
+    in property <string> heading;
+    in property <[NoteLine]> lines;
+    callback done();
+
+    title: root.heading;
+    icon: @image-url("icon.png");
+    default-font-family: root.font;
+    default-font-size: 14px;
+    preferred-width: 520px;
+    min-width: 400px;
+    preferred-height: 560px;
+    min-height: 240px;
+    background: Palette.background;
+
+    VerticalLayout {
+        ScrollView {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding-left: 24px; padding-right: 24px; padding-top: 20px; padding-bottom: 8px;
+                spacing: 8px;
+                for line in root.lines: HorizontalLayout {
+                    padding-top: line.heading ? 14px : 0px;
+                    spacing: 8px;
+                    if line.bullet: Text { text: "•"; color: #6b94ff; font-size: 14px; }
+                    StyledText {
+                        text: line.text; horizontal-stretch: 1;
+                        default-font-size: line.heading ? 17px : 14px; default-color: Palette.foreground;
+                    }
+                }
+            }
+        }
+        HorizontalLayout {
+            alignment: end; padding: 16px;
+            Button { text: "Continue"; primary: true; clicked => { root.done(); } }
+        }
+    }
+}
+
+// A short message above the notification area. It never takes focus and goes away by itself.
+export component Toast inherits Window {
+    in property <string> font;
+    in property <string> message;
+    title: "TypeThru notice";
+    no-frame: true;
+    always-on-top: true;
+    background: transparent;
+    default-font-family: root.font;
+    Rectangle {
+        border-radius: 18px;
+        background: Palette.color-scheme == ColorScheme.dark ? #2c2c2ef2 : #fbfbfdf2;
+        border-width: 1px;
+        border-color: #80808060;
+        HorizontalLayout {
+            padding-left: 16px; padding-right: 16px; padding-top: 10px; padding-bottom: 10px;
+            Text { text: root.message; font-size: 13px; font-weight: 500; color: Palette.foreground; }
+        }
+    }
+}
+
+// Covers every screen; drag to select, Esc cancels.
+export component Selector inherits Window {
+    in property <string> font;
+    callback started();
+    callback finished();
+    callback cancel();
+    title: "TypeThru selection";
+    no-frame: true;
+    always-on-top: true;
+    background: #00000046;
+    default-font-family: root.font;
+    forward-focus: scope;
+
+    touch := TouchArea {
+        mouse-cursor: crosshair;
+        pointer-event(event) => {
+            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                root.started();
+            } else if event.button == PointerEventButton.left && event.kind == PointerEventKind.up {
+                root.finished();
+            }
+        }
+    }
+    if touch.pressed: Rectangle {
+        x: min(touch.pressed-x, touch.mouse-x);
+        y: min(touch.pressed-y, touch.mouse-y);
+        width: abs(touch.mouse-x - touch.pressed-x);
+        height: abs(touch.mouse-y - touch.pressed-y);
+        border-width: 1.5px;
+        border-color: white;
+        background: #ffffff28;
+    }
+    Rectangle {
+        x: 24px; y: 24px; width: hint.preferred-width + 24px; height: hint.preferred-height + 14px;
+        border-radius: 10px; background: #000000a0;
+        hint := Text { text: "Drag over the text to copy. Esc cancels."; color: white; font-size: 15px; }
+    }
+    scope := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.cancel();
+                return accept;
+            }
+            reject
+        }
+    }
+}

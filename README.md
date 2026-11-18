@@ -98,9 +98,17 @@ sessions, and websites you use it with, including your workplace's IT policy and
 
 ## Windows
 
-A Windows version with the same features is being built in [`windows/`](windows). It needs no
-driver or administrator password, and installs for your user only. The first beta comes with
-the next release.
+A Windows version with the same features is in beta: download `TypeThru-<version>-windows.exe`
+from [Releases](https://github.com/sayre4ux/TypeThru/releases) and open it. It needs no driver or
+administrator password, and offers to install itself for your user only. Windows SmartScreen may
+warn about an unknown publisher; choose **More info › Run anyway**.
+
+The same privacy rules apply on Windows: no keyboard hook, key state is checked only while
+TypeThru waits or types, Settings reads only the keys pressed in it while you change the
+shortcut, the clipboard is read only to type and written only by Copy Text from Screen, the
+picture of the selected area is read by Windows' own text recognition and never saved, and the
+only network access is the update check. Windows does not let TypeThru type into apps running
+as administrator.
 
 ## Install
 

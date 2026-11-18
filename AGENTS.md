@@ -268,37 +268,44 @@ Build and release: `make windows` tests the core and compiles the app on the Mac
 because only a Windows build writes the exe's icon, version, and manifest (DPI awareness). After
 pushing, `make package-windows` downloads that build for the current commit, names it
 `TypeThru-<version>-windows.exe`, and signs it with the same update key. Attach both files to
-the same GitHub release as the DMG; the version is in `windows/Directory.Build.props` and must
+the same GitHub release as the DMG; the version is in `windows/Cargo.toml` and must
 have a `CHANGELOG.md` entry. Releases of the two apps share version numbers.
 
 Windows privacy rules, checked by the audit: no `SetWindowsHookEx`, raw input, or logging;
 clipboard writes and screen capture only in `ScreenCopy.cs`; network only in `Updater.cs`.
 
-### Rust rewrite (in progress)
+### Rust rewrite
 
-The Windows app is being rewritten in Rust (Slint UI with Acrylic glass, the `windows` crate,
-WinHTTP for updates) for a small exe without a bundled runtime. The C# projects stay until the
-Rust app has passed tests on a Windows PC; then they are removed. Done so far: step 1, the core;
-step 2, the app shell (notification area icon, shortcuts, glass panel; typing and the rest follow).
+The Windows app has been rewritten in Rust (Slint UI with Acrylic glass, the `windows` crate,
+WinHTTP for updates) for a small exe without a bundled runtime. It has every feature of the C#
+app; the C# projects stay until the Rust app has passed tests on a Windows PC, then they are removed.
+Release exes come from the Rust build (artifact `TypeThru-rust-windows-<sha>`).
 
 | Path | Role |
 |---|---|
-| `windows/Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` | Workspace, locked dependencies, pinned Rust (installed beside the default) |
+| `windows/Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` | Workspace (version of the Windows app), locked dependencies, pinned Rust (installed beside the default) |
 | `windows/core/` (`typethru-core`) | The C# `TypeThru.Core` ported: `text_rules`, `typing`, `update_feed`, `notes`, `settings`; `#![forbid(unsafe_code)]` |
 | `windows/core/tests/core.rs` | The C# tests ported, the shared cases, fuzz with a fixed seed, and the real release signature when its DMG is present |
 | `windows/deny.toml` | `cargo deny` in the Windows workflow: advisories, permissive licences, crates.io only |
-| `windows/app/` (`TypeThru.exe`) | `controller.rs` (icon, shortcuts, panel, Acrylic), `native.rs` (Win32 calls), `panel.rs`, `storage.rs`, `ui/*.slint` (glass controls, panel), `build.rs` (icon, version, manifest on Windows) |
+| `windows/app/src/controller.rs` | The app (C# `Controller`): icon and menu, shortcuts, panel and Acrylic, typing flow, Copy Text from Screen flow, updates, What's New, first run, Diagnostics |
+| `windows/app/src/keyboard.rs` | Key map from the target's layout, SendInput typing, stop watcher (C# `Keyboard.cs`) |
+| `windows/app/src/screen_copy.rs` | Capture in memory (GDI), `Windows.Media.Ocr`, clipboard write (C# `ScreenCopy.cs`) |
+| `windows/app/src/updater.rs` | WinHTTP downloads, signature, newer `ProductVersion`, rename the running exe (C# `Updater.cs`) |
+| `windows/app/src/install.rs` | Per-user install, Start menu shortcut, `HKCU\…\Run` login item, uninstall (C# `Installation`) |
+| `windows/app/src/settings_window.rs` | Settings window and recording a shortcut (keys pressed in that window only) |
+| `windows/app/src/native.rs` | The other Win32 calls: hotkeys, single instance, clipboard read, key state, elevation, version resource |
+| `windows/app/ui/*.slint` | Glass controls and panel; Settings, What's New, the notice, and the selection overlay (`windows.slint`) |
 | `windows/.cargo/config.toml` | Builds the C runtime into the exe, so no Visual C++ redistributable is needed |
 
 `cargo run -p typethru` on the Mac opens a preview of the panel (opaque, saves nothing). On
-Windows, `TypeThru.exe --renderer femtovg|software` picks Slint's renderer while the glass is
-tested on PCs. The test exe comes from the Windows workflow (artifact `TypeThru-rust-windows-<sha>`).
-Slint's royalty-free licence needs a "Made with Slint" credit before release (Settings > Help, step 4).
+Windows, `TypeThru.exe --renderer femtovg|software` picks Slint's renderer. Message boxes run on
+a thread of their own, so the Slint event loop is never re-entered. Settings › Help shows the
+"Made with Slint" credit (`AboutSlint`) that Slint's royalty-free licence asks for.
 
 Rules: `cargo fmt`, Clippy with warnings as errors, and `cargo test` must pass (`make windows`).
 The audit also applies the privacy rules to `.rs` and `.slint` files (screen and clipboard writes
 only in `app/src/screen_copy.rs`, network only in `app/src/updater.rs`, no `print!`/`dbg!`/logging),
-keeps `unsafe` to `app/src/native.rs`, `screen_copy.rs`, and `install.rs`, and checks the public
+keeps `unsafe` to `native.rs`, `screen_copy.rs`, `install.rs`, and `updater.rs` (WinHTTP), and checks the public
 key in `core/src/update_feed.rs`. Saved settings keep the C# file and keys; each value is checked on
 its own, and `LastUpdateCheck` is seconds since 1970. Timing rounds half away from zero, as the Mac.
 

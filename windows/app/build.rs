@@ -5,7 +5,7 @@
 
 fn main() {
     let config = slint_build::CompilerConfiguration::new().with_style("fluent".into());
-    if let Err(error) = slint_build::compile_with_config("ui/panel.slint", config) {
+    if let Err(error) = slint_build::compile_with_config("ui/main.slint", config) {
         panic!("Slint UI: {error}");
     }
     #[cfg(windows)]

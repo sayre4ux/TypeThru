@@ -86,8 +86,8 @@ rscreen=$(rs 'SetClipboardData|EmptyClipboard|BitBlt|StretchBlt|PrintWindow|GetD
 [ -z "$rscreen" ] && ok "Windows (Rust): clipboard writes and screen capture only in screen_copy.rs" || fail "Windows (Rust) clipboard write or screen capture outside screen_copy.rs: $rscreen"
 rnet=$(rs 'WinHttp|std::net|TcpStream|UdpSocket|reqwest|ureq|hyper::' | grep -v '^windows/app/src/updater.rs:' || true)
 [ -z "$rnet" ] && ok "Windows (Rust): network access only in updater.rs" || fail "Windows (Rust) network access outside updater.rs: $rnet"
-runsafe=$(rs '(^|[^a-z_])unsafe([^a-z_]|$)' | grep -v -E '^windows/app/src/(native|screen_copy|install)\.rs:|forbid\(unsafe_code\)|unsafe_op_in_unsafe_fn' || true)
-[ -z "$runsafe" ] && ok "Windows (Rust): unsafe code only in native.rs, screen_copy.rs, and install.rs" || fail "Windows (Rust) unsafe code elsewhere: $runsafe"
+runsafe=$(rs '(^|[^a-z_])unsafe([^a-z_]|$)' | grep -v -E '^windows/app/src/(native|screen_copy|install|updater)\.rs:|forbid\(unsafe_code\)|unsafe_op_in_unsafe_fn' || true)
+[ -z "$runsafe" ] && ok "Windows (Rust): unsafe code only in native.rs, screen_copy.rs, install.rs, and updater.rs" || fail "Windows (Rust) unsafe code elsewhere: $runsafe"
 mackey=$(sed -n 's/.*base64Encoded: "\([^"]*\)".*/\1/p' Sources/UpdateKey.swift)
 winkey=$(sed -n 's/.*PublicKey = Convert.FromBase64String("\([^"]*\)").*/\1/p' windows/TypeThru.Core/UpdateFeed.cs)
 rustkey=$(sed -n 's/.*PUBLIC_KEY: &str = "\([^"]*\)".*/\1/p' windows/core/src/update_feed.rs)
